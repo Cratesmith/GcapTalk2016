@@ -1,10 +1,12 @@
 using UnityEngine;
 using System.Collections;
+using UnityEngine.Serialization;
 
 public partial class GlobalDefaults : ResourceSingleton<GlobalDefaults>
 {
-    [SerializeField] ActorPlayer.Settings m_playerSettings;
-    public static ActorPlayer.Settings defaultPlayerSettings { get { return instance.m_playerSettings; } }
+    [FormerlySerializedAs("m_playerSettings")]
+    [SerializeField] ActorPlayer.Settings m_defaultPlayerSettings;
+    public static ActorPlayer.Settings defaultPlayerSettings { get { return instance.m_defaultPlayerSettings; } }
 }
     
 [RequireComponent(typeof(PreviewModel))]
@@ -18,8 +20,8 @@ public class ActorPlayer : BaseMonoBehaviour, IPreviewModelSource
         public float        moveSpeed = 1f;
     }
 
-    [SerializeField] ActorPlayerSettings m_settings;
-    public Settings settings { get {return m_settings!=null ? m_settings.settings:GlobalDefaults.defaultPlayerSettings;} }
+    [SerializeField] ActorPlayerSettings m_settingsOverride;
+    public Settings settings { get {return m_settingsOverride!=null ? m_settingsOverride.settings:GlobalDefaults.defaultPlayerSettings;} }
     #endregion
 
     #region IPreviewModelSource
