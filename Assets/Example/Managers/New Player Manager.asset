@@ -8,9 +8,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d2204bce41dcc4aec8ca09d624de6e25, type: 3}
-  m_Name: GlobalDefaults
+  m_Script: {fileID: 11500000, guid: 98ab0f49ac4a342bb8230c2a332adb85, type: 3}
+  m_Name: New Player Manager
   m_EditorClassIdentifier: 
-  m_playerSettings:
-    playerModelPrefab: {fileID: 1000012014071122, guid: fbd52e9c38d2744c797a310cbe125365,
-      type: 2}
+  pointsMultiplier: 2

@@ -33,10 +33,11 @@ public class ActorCoinPickup : BaseMonoBehaviour, IPreviewModelSource
     void OnTriggerEnter(Collider other)
     {
         var player = other.GetComponent<ActorPlayer>();
-        if(player!=null)
+        if(player!=null && enabled)
         {
             player.GivePoints(ScoreSettings.coinPickup.numPoints);
             Destroy(gameObject);
+            enabled = false;
         }
     }
 

@@ -59,5 +59,6 @@ public class ActorPlayer : BaseMonoBehaviour, IPreviewModelSource
     public void GivePoints(int i)
     {
         Debug.Log("I got "+i+" points!");
+        m_playerManager.OnPlayerCollectedPoints(i);
     }
 }
