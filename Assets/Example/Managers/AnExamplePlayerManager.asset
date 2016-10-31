@@ -8,7 +8,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1025c6288d8d547f6b05bdd2255209ac, type: 3}
-  m_Name: New Score Manager
+  m_Script: {fileID: 11500000, guid: 98ab0f49ac4a342bb8230c2a332adb85, type: 3}
+  m_Name: AnExamplePlayerManager
   m_EditorClassIdentifier: 
-  startingScore: 50
+  pointsMultiplier: 2
