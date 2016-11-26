@@ -61,6 +61,8 @@ public static class ScriptExecutionOrder
         var sortedDeps = SortDependencies(allScripts.ToArray());
         for(int i=0;i<sortedDeps.Count; ++i)
         {
+            bool hasFixedOrderItem = false;
+
             //
             // find out the starting priority for this island 
             var currentIsland = sortedDeps[i];
@@ -73,7 +75,17 @@ public static class ScriptExecutionOrder
                 {
                     // -j due to sorted items before it
                     newDepOrder = Mathf.Min(scriptOrder-j, newDepOrder);
+                    hasFixedOrderItem = true;
                 }
+            }
+
+            //
+            // Don't edit execution order unless there's a fixed order or a dependency
+            // This allows the script exection order UI to work normally for these cases 
+            // instead of forcing them to exection order 0
+            if(currentIsland.Length==1 && !hasFixedOrderItem)
+            {
+                continue;
             }
 
             // 
