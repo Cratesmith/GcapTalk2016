@@ -5,6 +5,9 @@ using System.Linq;
 using System.Collections.Generic;
 using Type = System.Type;
 
+/// <summary>
+/// Sets the script exection order to a specific value.
+/// </summary>
 [System.AttributeUsage(System.AttributeTargets.All)]
 public class ScriptExecutionOrderAttribute : System.Attribute 
 {
@@ -15,6 +18,11 @@ public class ScriptExecutionOrderAttribute : System.Attribute
 	}
 }
 
+/// <summary>
+/// Ensures that this script will execute after all scripts of the specified type.
+/// Exection order for all scripts in a dependency chain are automatically assigned.
+/// This respects order values set by ScriptExecutionOrderAttribute, and will show a warning if that's not possible.
+/// </summary>
 [System.AttributeUsage(System.AttributeTargets.Class)]
 public class ScriptDependencyAttribute : System.Attribute
 {
@@ -99,7 +107,7 @@ public static class ScriptExecutionOrder
                     newDepOrder = Mathf.Max(scriptFixedOrder, newDepOrder);
                     if(newDepOrder!=scriptFixedOrder)
                     {
-                        Debug.LogWarning("ScriptExectionOrder: "+script.name+" has fixed exection order "+scriptFixedOrder+" but due to dependency sorting is now at order "+newDepOrder);
+                        Debug.LogWarning("ScriptExectionOrder: "+script.name+" has fixed exection order "+scriptFixedOrder+" but due to ScriptDependency sorting is now at order "+newDepOrder);
                     }
                 } 
 
@@ -120,6 +128,9 @@ public static class ScriptExecutionOrder
         }
     }
 
+    /// <summary>
+    /// Does this script have a fixed exection order from ScriptExectionOrderAttribute? If so what is it's value?
+    /// </summary>
     static bool DetectFixedOrderByAttribute(UnityEditor.MonoScript script, out int order)
     {
         order = 0;
@@ -140,6 +151,9 @@ public static class ScriptExecutionOrder
         return true;
     }
 
+    /// <summary>
+    /// Sort the scripts by dependencies 
+    /// </summary>
     static List<UnityEditor.MonoScript[]> SortDependencies(UnityEditor.MonoScript[] scriptsToSort)
     {
         var lookup = new Dictionary<Type, UnityEditor.MonoScript>();
@@ -165,6 +179,9 @@ public static class ScriptExecutionOrder
         return SortDependencies_CreateGraphIslands(scriptsToSort, connections);
     }
 
+    /// <summary>
+    /// Create graph islands from the non directed dependency graph
+    /// </summary>
     static List<UnityEditor.MonoScript[]> SortDependencies_CreateGraphIslands(UnityEditor.MonoScript[] scriptsToSort, 
         Dictionary<UnityEditor.MonoScript, HashSet<UnityEditor.MonoScript>> connections)
     {
@@ -202,6 +219,10 @@ public static class ScriptExecutionOrder
         return output;
     }
 
+    /// <summary>
+    /// Visit this script and all dependencies (adding them recursively to the sorted list).
+    /// This also builds a connections table that can be used as a nondirected graph of dependencies
+    /// </summary>
     static void SortDependencies_Visit( UnityEditor.MonoScript current,
         HashSet<UnityEditor.MonoScript> visited,
         List<UnityEditor.MonoScript> sortedItems,
@@ -209,6 +230,8 @@ public static class ScriptExecutionOrder
         Dictionary<UnityEditor.MonoScript, HashSet<UnityEditor.MonoScript>> connections,
         UnityEditor.MonoScript visitedBy)
     {
+        // 
+        // Table all connections so islands can be calculated 
         HashSet<UnityEditor.MonoScript> currentConnectionSet = null;
         if(!connections.TryGetValue(current, out currentConnectionSet))
         {
@@ -219,16 +242,21 @@ public static class ScriptExecutionOrder
         {
             currentConnectionSet.Add(visitedBy);
         }
-
+            
         if(visited.Add(current))  
         {  
+            //
+            // visit all dependencies (adding them recursively to the sorted list) before adding ourselves to the sorted list
+            // this ensures that
+            // 1. all dependencies are sorted
+            // 2. cyclic dependencies can be caught if an item is visited AND it's been added to this list
             var deps = SortDependencies_GetDependencies(current, lookup);
             for(int i=0;i<deps.Length; ++i)
             {
                 if(deps[i]==null) continue;
 
                 UnityEditor.MonoScript depScript = null;
-                Debug.Assert(lookup.ContainsKey(deps[i]), "Dependency type "+deps[i].Name+" not found found for script "+current.name+"! Check that it exists in a file with the same name as the class");
+                Debug.Assert(lookup.ContainsKey(deps[i]), "ScriptDependency type "+deps[i].Name+" not found found for script "+current.name+"! Check that it exists in a file with the same name as the class");
                 if(lookup.TryGetValue(deps[i], out depScript))
                 {
                     currentConnectionSet.Add(depScript);
@@ -240,10 +268,13 @@ public static class ScriptExecutionOrder
         }
         else
         {
-            Debug.Assert(sortedItems.Contains(current), "Cyclic dependency found for script "+current.name+"!");
+            Debug.Assert(sortedItems.Contains(current), "Cyclic dependency found for ScriptDependency "+current.name+" via "+(visitedBy!=null?visitedBy.name:"Unknown")+"!");
         }
     }
 
+    /// <summary>
+    /// Does this script have dependencies?
+    /// </summary>
     static bool SortDependencies_HasDependencies(UnityEditor.MonoScript script)
     {
         if(script==null) return false;
@@ -251,6 +282,9 @@ public static class ScriptExecutionOrder
         return attribs.Length > 0;
     }
 
+    /// <summary>
+    /// Get the dependencies for a script using the lookup table
+    /// </summary>
     static Type[] SortDependencies_GetDependencies( UnityEditor.MonoScript current, Dictionary<Type, UnityEditor.MonoScript> lookup)
     {
         if(current==null) return new Type[0];
