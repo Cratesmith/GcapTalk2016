@@ -27,17 +27,18 @@ public class ScriptExecutionOrderAttribute : System.Attribute
 [System.AttributeUsage(System.AttributeTargets.Class)]
 public class ScriptDependencyAttribute : System.Attribute
 {
-    readonly Type type;
-
+    #if UNITY_EDITOR
+    public readonly Type scriptDependencyType;
     public ScriptDependencyAttribute(Type type)
     {
-        this.type = type;
+        this.scriptDependencyType = type;
     }   
 
     public virtual Type[] GetScriptDependencies()
     {
-        return new Type[] {type};
+        return new Type[] {scriptDependencyType};
     }
+    #endif
 }
    
 #if UNITY_EDITOR 

@@ -3,6 +3,7 @@ using System.Collections;
 using System.IO;
 using System.Collections.Generic;
 using Type = System.Type;
+using UnityEngine.Assertions;
 
 #if UNITY_EDITOR
 using System.Linq;
@@ -12,38 +13,36 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
 , ISerializationCallbackReceiver
 {
     [System.Serializable]
-    public struct Item 
+    public struct SerializedDependency
     {
-        public string   forType;
-        public string[] dependsOn;
-        #if UNITY_EDITOR
-        public void WriteToProperty(UnityEditor.SerializedProperty property)
-        {
-            var forTypeProp = property.FindPropertyRelative("forType");
-            forTypeProp.stringValue = forType;
-
-            var dependsOnProp = property.FindPropertyRelative("dependsOn");
-            dependsOnProp.arraySize = dependsOn!=null ? dependsOn.Length:0;
-            for(int i=0;i<dependsOnProp.arraySize;++i)
-            {
-                dependsOnProp.GetArrayElementAtIndex(i).stringValue = dependsOn[i];
-            }
-        }
-        #endif
+        public string requiredTypeName;
+        public string defaultTypeName;
     }
-    [SerializeField] List<Item> m_items = new List<Item>();
 
-    Dictionary<Type, Type[]> m_dependencies = new Dictionary<Type, Type[]>();
-
-    static Type[] GetDependencies(Type forType)
+    [System.Serializable]
+    public struct SerializedItem 
     {
-        Type[] output = null;
+        public string typeName;    
+        public SerializedDependency[] dependencies;
+    }  
+    [SerializeField] List<SerializedItem> m_serializedItems = new List<SerializedItem>();
+
+    public struct Dependency
+    {
+        public Type requiredType;
+        public Type defaultType;
+    }
+    Dictionary<Type, Dependency[]> m_dependencies = new Dictionary<Type, Dependency[]>();
+
+    static Dependency[] GetDependencies(Type forType)
+    {
+        Dependency[] output = null;
         if(instance.m_dependencies.TryGetValue(forType, out output))
         {
             return output;
         }
 
-        return new Type[0];
+        return new Dependency[0];
     }
 
     public static void CreateDependencies_Runtime(Component forComponent)
@@ -56,8 +55,8 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
         for(int i=0;i<dependencies.Length;++i)
         {
             var dep = dependencies[i];
-            if(gameObject.GetComponent(dep)) continue;
-            gameObject.AddComponent(dep);
+            if(gameObject.GetComponent(dep.requiredType)) continue;
+            gameObject.AddComponent(dep.defaultType);
         }        
     }
 
@@ -77,13 +76,13 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
             for(int j=0; j<deps.Length; ++j)
             {
                 var dep = deps[j];
-                if(typeof(Component).IsAssignableFrom(dep))
+                if(typeof(Component).IsAssignableFrom(dep.requiredType))
                 {
-                    var component = gameObject.GetComponent(dep);
+                    var component = gameObject.GetComponent(dep.requiredType);
                     if(!component) 
                     {
-                        Debug.Log("ComponentDependencyAttribute: Creating required component "+dep.Name);
-                        gameObject.AddComponent(dep);                      
+                        Debug.Log("ComponentDependencyAttribute: Creating default component type "+dep.defaultType.Name);
+                        gameObject.AddComponent(dep.defaultType);                      
                     }
                 }
             }
@@ -105,43 +104,52 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
         {
             UnityEditor.MonoScript script = UnityEditor.AssetDatabase.LoadAssetAtPath(allScriptPaths[i], typeof(UnityEditor.MonoScript)) as UnityEditor.MonoScript;
             if(!script || script.GetClass()==null) continue;
-            if(typeof(Component).IsAssignableFrom(script.GetClass())) continue;
+            if(!typeof(Component).IsAssignableFrom(script.GetClass())) continue;
 
-            var type = script.GetClass();
-            var dependencies = type.GetCustomAttributes(typeof(ComponentDependencyAttribute),true)
+            var type = script.GetClass();    
+            var attributes = (ComponentDependencyAttribute[])type.GetCustomAttributes(typeof(ComponentDependencyAttribute),true);
+            if(attributes.Length==0) continue;
+             
+            var dependencies = attributes
                 .Cast<ComponentDependencyAttribute>()
-                .SelectMany(x=>x.GetScriptDependencies())
-                .ToArray();
+                .SelectMany(x=>x.GetComponentDependencies())
+                .ToArray(); 
 
             ProcessAll_SetDependencies(type, dependencies);
         }
     }
 
-    static void ProcessAll_SetDependencies(Type forType, Type[] dependsOn)
-    {
-        var so = new UnityEditor.SerializedObject(instance);
-
-        var items = instance.m_items;
-
-        if(dependsOn == null) 
+    static void ProcessAll_SetDependencies(Type type, Dependency[] dependencies)
+    {  
+        var items = instance.m_serializedItems;
+        if(dependencies == null) 
         {
-            dependsOn = new Type[0];
+            dependencies = new Dependency[0];
+        } 
+           
+        items.RemoveAll(x=>x.typeName==type.Name); 
+        if(dependencies.Length>0)
+        {
+            var seralisedDeps = new List<SerializedDependency>();
+            foreach(var dependency in dependencies)
+            {
+                Assert.IsNotNull(dependency.requiredType);
+                Assert.IsNotNull(dependency.defaultType);
+                seralisedDeps.Add(new SerializedDependency(){
+                    requiredTypeName = dependency.requiredType.Name,
+                    defaultTypeName = dependency.defaultType.Name,
+                });
+            }
+            items.Add(new SerializedItem(){
+                typeName = type.Name,
+                dependencies = seralisedDeps.ToArray()
+            }); 
         }
 
-        items.RemoveAll(x=>x.forType==forType.Name);
-        items.Add(new Item(){
-            forType = forType.Name,
-            dependsOn = dependsOn.Select(x=>x.Name).ToArray()
-        });
-            
-        var itemsProp = so.FindProperty("m_items");
-        itemsProp.arraySize = items.Count;
-        for(int i=0; i<items.Count; ++i)
-        {
-            items[i].WriteToProperty(itemsProp.GetArrayElementAtIndex(i));
-        }
-            
-        so.ApplyModifiedPropertiesWithoutUndo();
+        instance.hideFlags = HideFlags.NotEditable;
+
+        var so = new UnityEditor.SerializedObject(instance);       
+        so.Update();
     }
     #endif
 
@@ -153,27 +161,35 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
     void ISerializationCallbackReceiver.OnAfterDeserialize()
     {
         m_dependencies.Clear();
-        for(int i=0;i<m_items.Count;++i)
+        for(int i=0;i<m_serializedItems.Count;++i)
         {
-            var item = m_items[i];
-            var forType = GetType().Assembly.GetType(item.forType);
+            var item = m_serializedItems[i];
+            var forType = GetType().Assembly.GetType(item.typeName);
             if(forType==null)
             {
                 continue;
             }
 
-            List<Type> list = new List<Type>();
-            for(int j=0;j<item.dependsOn.Length;++j)
+            List<Dependency> list = new List<Dependency>();
+            for(int j=0;j<item.dependencies.Length;++j)
             {
-                var depString = item.dependsOn[j];
-                var depType = GetType().Assembly.GetType(depString);
-                if(depType==null)
+                var dependency = new Dependency();
+                var dep = item.dependencies[j];
+                dependency.requiredType = GetType().Assembly.GetType(dep.requiredTypeName);
+                if(dependency.requiredType==null)
                 {
-                    Debug.LogError("ComponentDependencyCache: Could not find type "+depString);
+                    Debug.LogError("ComponentDependencyCache: Could not find type "+dep.requiredTypeName);
                     continue;
                 }
 
-                list.Add(depType);
+                dependency.defaultType = GetType().Assembly.GetType(dep.defaultTypeName);
+                if(dependency.requiredType==null)
+                {
+                    Debug.LogError("ComponentDependencyCache: Could not find type "+dep.defaultTypeName);
+                    continue;
+                }
+
+                list.Add(dependency);
             }
 
             m_dependencies[forType] = list.ToArray();
