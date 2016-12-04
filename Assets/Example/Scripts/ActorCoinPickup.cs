@@ -7,7 +7,7 @@ public partial class ScoreSettings : ResourceSingleton<ScoreSettings>
     public static ActorCoinPickup.Settings coinPickup { get { return instance.m_coinPickup; } }
 }
 
-[RequireComponent(typeof(PreviewModel))]
+[ComponentDependencyAttribute(typeof(PreviewModel))]
 public class ActorCoinPickup : BaseMonoBehaviour, IPreviewModelSource
 {
     [System.Serializable]
