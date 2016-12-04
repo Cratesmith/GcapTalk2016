@@ -29,7 +29,6 @@ public class ScriptExecutionOrderAttribute : System.Attribute
 [System.AttributeUsage(System.AttributeTargets.Class)]
 public class ScriptDependencyAttribute : System.Attribute
 {
-    #if UNITY_EDITOR
     public readonly Type scriptDependencyType;
     public ScriptDependencyAttribute(Type type)
     {
@@ -40,7 +39,6 @@ public class ScriptDependencyAttribute : System.Attribute
     {
         return new Type[] {scriptDependencyType};
     }
-    #endif
 }
    
 #if UNITY_EDITOR 
