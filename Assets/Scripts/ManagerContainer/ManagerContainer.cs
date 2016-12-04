@@ -3,7 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 
-[ScriptExecutionOrder(-16000)]
+/// <summary>
+/// Manager container.
+/// </summary>
+[ScriptExecutionOrder(-16000)] // execute as early as possible. Managers are supposed to run before objects in the scene
 public partial class ManagerContainer : MonoBehaviour
 {
     [SerializeField] Manager[]  m_managerPrefabs = new Manager[0];
@@ -38,7 +41,17 @@ public partial class ManagerContainer : MonoBehaviour
     {
         var sortedManagers = GetSortedManagers();
         for(int i=0;i<sortedManagers.Count; ++i) {
-            if(m_managerPrefabs[i]==null) continue;    
+            if(sortedManagers[i]==null) continue;    
+            if(!isGlobalContainer && ManagerAttributeCache.IsManagerAlwaysGlobal(sortedManagers[i].GetType()))
+            {
+                    Debug.LogError("Cannot add [ManagerAlwaysGlobal] manager prefab \""
+                    +sortedManagers[i].name
+                    +"\"("+sortedManagers[i].GetType().Name
+                    +") to non-global container!"
+                    +name
+                    +"."); 
+                continue;
+            }
             var manager = Instantiate(sortedManagers[i]);
             AddNewManager(manager);
         }   

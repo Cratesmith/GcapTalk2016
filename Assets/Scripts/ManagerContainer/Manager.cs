@@ -19,6 +19,7 @@ public abstract class Manager : ScriptableObject
 
     public static System.Type[] GetDependencies(System.Type type)
     {
+        /*
         List<System.Type> dependencies = new List<System.Type>();
         var interfaces = type.GetInterfaces();
         for (int i = 0; i < interfaces.Length; i++)
@@ -32,18 +33,21 @@ public abstract class Manager : ScriptableObject
 
             dependencies.Add(current.GetGenericArguments()[0]);
         }
-        return dependencies.ToArray();
+        return dependencies.ToArray();*/
+        return ManagerAttributeCache.GetManagerDependencies(type);
     }
 
     public System.Type[] GetDependencies()
     {
-        return Manager.GetDependencies(GetType());
+    //    return Manager.GetDependencies(GetType());
+        return ManagerAttributeCache.GetManagerDependencies(GetType());
     }
 
     public T GetManager<T>() where T:Manager
     {
-        var source = this as IManagerDependency<T>;
-        if (source == null)
+        //var source = this as IManagerDependency<T>;
+        //if (source == null)
+        if(!ManagerAttributeCache.DoesManagerDependOn(GetType(), typeof(T)))
         {
             Debug.LogError(string.Format("{0} doesn't implement IManagerDependency<{1}>", GetType().Name, typeof(T).Name));
             return null;

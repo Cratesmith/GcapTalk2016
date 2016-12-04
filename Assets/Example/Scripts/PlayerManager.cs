@@ -2,7 +2,8 @@ using UnityEngine;
 using System.Collections;
     
 [CreateAssetMenu(menuName="Managers/Player Manager")]
-public class PlayerManager : Manager, IManagerDependency<ScoreManager>
+[ManagerDependency(typeof(ScoreManager))]
+public class PlayerManager : Manager//, IManagerDependency<ScoreManager>
 {
     [SerializeField] int pointsMultiplier = 1;
     public ActorPlayer currentPlayer {get;set;}
