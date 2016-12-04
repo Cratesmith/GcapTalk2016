@@ -11,7 +11,6 @@ using System.Linq;
 
 public class ManagerDependencyAttribute : System.Attribute
 {
-    #if UNITY_EDITOR
     public readonly System.Type managerDependency;
 
     public ManagerDependencyAttribute(System.Type dependsOnManagerType)
@@ -21,6 +20,7 @@ public class ManagerDependencyAttribute : System.Attribute
         managerDependency = dependsOnManagerType;
     }
 
+    #if UNITY_EDITOR
     public System.Type[] GetManagerDependencies() 
     {
         return new System.Type[] { managerDependency };
