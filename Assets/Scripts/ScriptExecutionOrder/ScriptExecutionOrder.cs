@@ -101,10 +101,12 @@ public static class ScriptExecutionOrder
                 continue;
             }
 
+            /*
             Debug.Log("ScriptExectionOrder: Island:"+i+" starts at "+newDepOrder
                 +" Scripts:"+string.Join(",", currentIsland
                     .Select(x=>fixedOrders.ContainsKey(x.script) ? (x.script.name+"["+fixedOrders[x.script]+"]"):x.script.name)
                     .ToArray()));
+            */
 
             // 
             // apply priorities in order
@@ -218,7 +220,7 @@ public static class ScriptExecutionOrder
         }
          
 
-        Debug.Log("ScriptExecutionOrder: Sorted dependencies: "+string.Join(", ",sortedItems.Select(x=>x.name).ToArray()));
+        //Debug.Log("ScriptExecutionOrder: Sorted dependencies: "+string.Join(", ",sortedItems.Select(x=>x.name).ToArray()));
         return SortDependencies_CreateGraphIslands(sortedItems, connections);
     }
 
