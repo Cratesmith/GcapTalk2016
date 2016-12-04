@@ -6,6 +6,7 @@ using UnityEngine.SceneManagement;
 /// Basetype for ScriptableObjects. 
 /// This adds methods for accessing managers
 /// </summary>
+[ScriptDependencyAttribute(typeof(ManagerContainer))]
 public abstract class BaseScriptableObject : ScriptableObject
 {
     public T GetManager<T>(Scene scene) where T:Manager

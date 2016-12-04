@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 
+[ScriptDependencyAttribute(typeof(ManagerContainer))]
 [ScriptExecutionOrder(-16000)]
 public class ManagerContainerExecutor : MonoBehaviour
 {

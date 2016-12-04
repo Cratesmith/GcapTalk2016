@@ -6,6 +6,7 @@ using System.Collections.Generic;
 /// Basetype for MonoBehaviours. 
 /// This adds methods for accessing managers and also enforces component dependencies.
 /// </summary>
+[ScriptDependencyAttribute(typeof(ManagerContainer))]
 public abstract class BaseMonoBehaviour : MonoBehaviour
 {
     public T GetManager<T>() where T:Manager
