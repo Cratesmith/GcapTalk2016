@@ -38,7 +38,7 @@ public partial class ManagerContainer : MonoBehaviour
     {
         var sortedManagers = GetSortedManagers();
         for(int i=0;i<sortedManagers.Count; ++i) {
-            if(m_managerPrefabs[i]==null) continue;    
+            if(sortedManagers[i]==null) continue;    
             var manager = Instantiate(sortedManagers[i]);
             AddNewManager(manager);
         }   
