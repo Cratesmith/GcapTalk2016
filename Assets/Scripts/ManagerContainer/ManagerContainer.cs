@@ -6,7 +6,6 @@ using UnityEngine.SceneManagement;
 /// <summary>
 /// Manager container.
 /// </summary>
-[ScriptExecutionOrder(-16000)] // execute as early as possible. Managers are supposed to run before objects in the scene
 public partial class ManagerContainer : MonoBehaviour
 {
     [SerializeField] Manager[]  m_managerPrefabs = new Manager[0];
