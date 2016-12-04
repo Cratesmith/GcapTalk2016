@@ -15,7 +15,7 @@ public abstract class ResourceSingleton<T> : ScriptableObject where T:Scriptable
         { 
             LoadAsset();
 
-            if(!s_instance)
+            if(s_instance==null)
             {
                 throw new System.ArgumentNullException("Couldn't load asset for ResourceSingleton "+typeof(T).Name);
             }

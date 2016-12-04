@@ -2,6 +2,10 @@ using UnityEngine;
 using System.Collections;
 using UnityEngine.SceneManagement;
 
+/// <summary>
+/// Basetype for ScriptableObjects. 
+/// This adds methods for accessing managers
+/// </summary>
 public abstract class BaseScriptableObject : ScriptableObject
 {
     public T GetManager<T>(Scene scene) where T:Manager

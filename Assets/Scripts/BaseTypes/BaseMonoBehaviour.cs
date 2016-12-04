@@ -2,6 +2,10 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
+/// <summary>
+/// Basetype for MonoBehaviours. 
+/// This adds methods for accessing managers and also enforces component dependencies.
+/// </summary>
 public abstract class BaseMonoBehaviour : MonoBehaviour
 {
     public T GetManager<T>() where T:Manager

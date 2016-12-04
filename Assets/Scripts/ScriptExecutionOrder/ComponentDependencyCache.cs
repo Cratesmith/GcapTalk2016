@@ -9,6 +9,10 @@ using UnityEngine.Assertions;
 using System.Linq;
 #endif
 
+/// <summary>
+/// Cache for ComponentDependencyAttribute so GetAttributes doesn't need to be called on each type 
+/// at runtime (potential GC Alloc and performance spikes)
+/// </summary>
 public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCache>
 , ISerializationCallbackReceiver
 {
@@ -25,6 +29,9 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
         public string typeName;    
         public SerializedDependency[] dependencies;
     }  
+    /// <summary>
+    /// Serialized version of dependency table to be loaded at runtime.
+    /// </summary>
     [SerializeField] List<SerializedItem> m_serializedItems = new List<SerializedItem>();
 
     public struct Dependency
@@ -32,6 +39,10 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
         public Type requiredType;
         public Type defaultType;
     }
+
+    /// <summary>
+    /// Dependencies table for all types using ComponentDepenencyAttribute
+    /// </summary>
     Dictionary<Type, Dependency[]> m_dependencies = new Dictionary<Type, Dependency[]>();
 
     static Dependency[] GetDependencies(Type forType)
@@ -111,7 +122,7 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
             if(attributes.Length==0) continue;
              
             var dependencies = attributes
-                .Cast<ComponentDependencyAttribute>()
+                .Where(x=> x!=null)
                 .SelectMany(x=>x.GetComponentDependencies())
                 .ToArray(); 
 
@@ -164,10 +175,12 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
         for(int i=0;i<m_serializedItems.Count;++i)
         {
             var item = m_serializedItems[i];
+            if(string.IsNullOrEmpty(item.typeName)) continue;
+
             var forType = GetType().Assembly.GetType(item.typeName);
             if(forType==null)
             {
-                continue;
+                continue; 
             }
 
             List<Dependency> list = new List<Dependency>();
@@ -175,14 +188,21 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
             {
                 var dependency = new Dependency();
                 var dep = item.dependencies[j];
-                dependency.requiredType = GetType().Assembly.GetType(dep.requiredTypeName);
+
+                if(!string.IsNullOrEmpty(dep.requiredTypeName))
+                {
+                    dependency.requiredType = GetType().Assembly.GetType(dep.requiredTypeName);
+                }
                 if(dependency.requiredType==null)
                 {
                     Debug.LogError("ComponentDependencyCache: Could not find type "+dep.requiredTypeName);
                     continue;
                 }
 
-                dependency.defaultType = GetType().Assembly.GetType(dep.defaultTypeName);
+                if(!string.IsNullOrEmpty(dep.defaultTypeName))
+                {
+                    dependency.defaultType = GetType().Assembly.GetType(dep.defaultTypeName);
+                }
                 if(dependency.requiredType==null)
                 {
                     Debug.LogError("ComponentDependencyCache: Could not find type "+dep.defaultTypeName);

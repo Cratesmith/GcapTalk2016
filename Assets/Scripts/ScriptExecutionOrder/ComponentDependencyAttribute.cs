@@ -10,30 +10,50 @@ using UnityEngine.Assertions;
 using System.Linq;
 #endif
 
-
+/// <summary>
+/// This component depends on another component
+/// </summary>
 public class ComponentDependencyAttribute : ScriptDependencyAttribute
 {   
     #if UNITY_EDITOR
-    public readonly Type defaultComponentType;
-    public readonly bool m_executesAfterDependencies;
+    public Type defaultComponentType        {get;private set;}
+    public bool m_executesAfterDependencies {get;private set;}
 
+    /// <summary>
+    /// Declare a component dependency
+    /// </summary>
+    /// <param name="requiredAndDefaultType">A non abstract component type that this class will require</param>
+    /// <param name="executesAfterDependency">If set to <c>true</c> this class executes after the dependency class.</param>
     public ComponentDependencyAttribute(Type requiredAndDefaultType, bool executesAfterDependency=true) : base(requiredAndDefaultType)
     {
-        Assert.IsNotNull(requiredAndDefaultType, "ComponentDependency: types cannot be NULL");
-        Assert.IsTrue(!requiredAndDefaultType.IsAbstract, "ComponentDependency: default type cannot be abstract");
-        defaultComponentType = requiredAndDefaultType;
-        m_executesAfterDependencies = executesAfterDependency;       
-    }
-          
-    public ComponentDependencyAttribute(Type requiredType, Type defaultType, bool executesAfterDependency=true) : base(requiredType)
-    {
-        Assert.IsTrue(requiredType!=null && defaultType!=null, "ComponentDependency: types cannot be NULL");
-        Assert.IsTrue(!defaultType.IsAbstract, "ComponentDependency default type cannot be abstract");
-        Assert.IsTrue(requiredType.IsAssignableFrom(defaultType), "ComponentDependency default type must be same as or assignable to required type");
-        defaultComponentType = defaultType;
-        m_executesAfterDependencies = executesAfterDependency;       
+        Init(requiredAndDefaultType, requiredAndDefaultType, executesAfterDependency);    
     }
 
+    /// <summary>
+    /// Declare a component dependency
+    /// </summary>
+    /// <param name="requiredType">Required type.</param>
+    /// <param name="defaultType">Default type.</param>
+    /// <param name="executesAfterDependency">If set to <c>true</c> executes after dependency.</param>
+    public ComponentDependencyAttribute(Type requiredType, Type defaultType, bool executesAfterDependency=true) : base(requiredType)
+    {
+        Init(requiredType, defaultType, executesAfterDependency);
+    }
+
+    void Init(Type requiredType, Type defaultType, bool executesAfterDependency)
+    {
+        Assert.IsTrue(requiredType != null && defaultType != null, "ComponentDependency: types cannot be NULL");
+        Assert.IsTrue(!defaultType.IsAbstract, "ComponentDependency: default type " + defaultType.Name + " cannot be abstract");
+        Assert.IsTrue(typeof(Component).IsAssignableFrom(defaultType), "ComponentDependency: default type " + defaultType.Name + " is not a Component");
+        Assert.IsTrue(requiredType.IsAssignableFrom(defaultType), "ComponentDependency default type must be same as or assignable to required type");
+        defaultComponentType = defaultType;
+        m_executesAfterDependencies = executesAfterDependency;
+    }
+
+    /// <summary>
+    /// Retreive the dependencies for this type
+    /// </summary>
+    /// <returns>The component dependencies.</returns>
     public ComponentDependencyCache.Dependency[] GetComponentDependencies()
     {
         var dependency = new ComponentDependencyCache.Dependency {
