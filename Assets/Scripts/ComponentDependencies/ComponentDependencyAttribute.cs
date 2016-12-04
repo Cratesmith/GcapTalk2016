@@ -15,7 +15,6 @@ using System.Linq;
 /// </summary>
 public class ComponentDependencyAttribute : ScriptDependencyAttribute
 {   
-    #if UNITY_EDITOR
     public Type defaultComponentType        {get;private set;}
     public bool m_executesAfterDependencies {get;private set;}
 
@@ -50,6 +49,7 @@ public class ComponentDependencyAttribute : ScriptDependencyAttribute
         m_executesAfterDependencies = executesAfterDependency;
     }
 
+    #if UNITY_EDITOR
     /// <summary>
     /// Retreive the dependencies for this type
     /// </summary>

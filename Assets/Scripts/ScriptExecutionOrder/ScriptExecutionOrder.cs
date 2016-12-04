@@ -29,7 +29,6 @@ public class ScriptExecutionOrderAttribute : System.Attribute
 [System.AttributeUsage(System.AttributeTargets.Class)]
 public class ScriptDependencyAttribute : System.Attribute
 {
-    #if UNITY_EDITOR
     public readonly Type scriptDependencyType;
     public ScriptDependencyAttribute(Type type)
     {
@@ -40,7 +39,6 @@ public class ScriptDependencyAttribute : System.Attribute
     {
         return new Type[] {scriptDependencyType};
     }
-    #endif
 }
    
 #if UNITY_EDITOR 
@@ -101,10 +99,12 @@ public static class ScriptExecutionOrder
                 continue;
             }
 
+            /*
             Debug.Log("ScriptExectionOrder: Island:"+i+" starts at "+newDepOrder
                 +" Scripts:"+string.Join(",", currentIsland
                     .Select(x=>fixedOrders.ContainsKey(x.script) ? (x.script.name+"["+fixedOrders[x.script]+"]"):x.script.name)
                     .ToArray()));
+            */
 
             // 
             // apply priorities in order
@@ -218,7 +218,7 @@ public static class ScriptExecutionOrder
         }
          
 
-        Debug.Log("ScriptExecutionOrder: Sorted dependencies: "+string.Join(", ",sortedItems.Select(x=>x.name).ToArray()));
+        //Debug.Log("ScriptExecutionOrder: Sorted dependencies: "+string.Join(", ",sortedItems.Select(x=>x.name).ToArray()));
         return SortDependencies_CreateGraphIslands(sortedItems, connections);
     }
 
