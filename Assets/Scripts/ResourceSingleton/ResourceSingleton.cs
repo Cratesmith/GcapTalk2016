@@ -15,7 +15,7 @@ public abstract class ResourceSingleton<T> : ScriptableObject where T:Scriptable
         { 
             LoadAsset();
 
-            if(!s_instance)
+            if(s_instance==null)
             {
                 throw new System.ArgumentNullException("Couldn't load asset for ResourceSingleton "+typeof(T).Name);
             }
@@ -36,13 +36,14 @@ public abstract class ResourceSingleton<T> : ScriptableObject where T:Scriptable
         else 
         {
             #if UNITY_EDITOR
+            ResourceSingletonBuilder.BuildResourceSingletonsIfDirty(); // ensure that singletons were built
+
             var temp = ScriptableObject.CreateInstance<T>();
             var monoscript  = MonoScript.FromScriptableObject(temp);
             ScriptableObject.DestroyImmediate(temp);
             var scriptPath  = AssetDatabase.GetAssetPath(monoscript);
             var assetDir    = Path.GetDirectoryName(scriptPath)+"/Resources/";
             var assetPath   = assetDir+Path.GetFileNameWithoutExtension(scriptPath)+".asset";
-
             s_instance = AssetDatabase.LoadAssetAtPath<T>(assetPath);
             #endif
         }
@@ -55,9 +56,21 @@ public abstract class ResourceSingleton<T> : ScriptableObject where T:Scriptable
 [InitializeOnLoad]
 public static class ResourceSingletonBuilder
 {
+    static bool s_hasRun = false;
+
     static ResourceSingletonBuilder()
     {
-        EditorApplication.delayCall += BuildResourceSingletons;
+        BuildResourceSingletonsIfDirty();
+    }
+
+    public static void BuildResourceSingletonsIfDirty()
+    {
+        if(s_hasRun)
+        {
+            return; 
+        }
+
+        BuildResourceSingletons();
     }
 
     static void BuildResourceSingletons()
@@ -78,6 +91,8 @@ public static class ResourceSingletonBuilder
             var generic = method.MakeGenericMethod(new System.Type[] { i });
             generic.Invoke(null, new object[0]);
         }
+
+        s_hasRun = true;
     }
 
     static bool GetBaseType(System.Type type, System.Type baseType)

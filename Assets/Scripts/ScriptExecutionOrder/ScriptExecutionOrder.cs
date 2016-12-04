@@ -5,6 +5,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Type = System.Type;
 
+
 /// <summary>
 /// Sets the script exection order to a specific value.
 /// </summary>
@@ -26,17 +27,18 @@ public class ScriptExecutionOrderAttribute : System.Attribute
 [System.AttributeUsage(System.AttributeTargets.Class)]
 public class ScriptDependencyAttribute : System.Attribute
 {
-    public readonly Type type;
-
+    #if UNITY_EDITOR
+    public readonly Type scriptDependencyType;
     public ScriptDependencyAttribute(Type type)
     {
-        this.type = type;
+        this.scriptDependencyType = type;
     }   
 
-    public Type[] GetDependencies()
+    public virtual Type[] GetScriptDependencies()
     {
-        return new Type[] {type};
+        return new Type[] {scriptDependencyType};
     }
+    #endif
 }
    
 #if UNITY_EDITOR 
@@ -299,7 +301,7 @@ public static class ScriptExecutionOrder
         {
             var dep = attribs[i] as ScriptDependencyAttribute;
             if(dep==null) continue;
-            types.AddRange(dep.GetDependencies());
+            types.AddRange(dep.GetScriptDependencies());
         }
 
         return types.ToArray();

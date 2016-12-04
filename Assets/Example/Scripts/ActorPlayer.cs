@@ -9,7 +9,7 @@ public partial class GlobalDefaults : ResourceSingleton<GlobalDefaults>
     public static ActorPlayer.Settings defaultPlayerSettings { get { return instance.m_defaultPlayerSettings; } }
 }
     
-[RequireComponent(typeof(PreviewModel))]
+[ComponentDependency(typeof(PreviewModel))]
 public class ActorPlayer : BaseMonoBehaviour, IPreviewModelSource
 {
     #region settings
@@ -32,21 +32,20 @@ public class ActorPlayer : BaseMonoBehaviour, IPreviewModelSource
     #endregion
 
     PlayerManager   m_playerManager;
-    GameObject      m_playerModelInstance;
 
     #region lifecycle
-    void Awake()
+    protected override void Awake()
     {
+        base.Awake();
         m_playerManager = GetManager<PlayerManager>();
         m_playerManager.currentPlayer = this;
 
         if(settings.playerModelPrefab)
         {
-            m_playerModelInstance = Instantiate(settings.playerModelPrefab, 
+            Instantiate(settings.playerModelPrefab, 
                 transform.position, 
                 transform.rotation, 
-                transform) 
-                as GameObject;
+                transform);
         }
     }
 
