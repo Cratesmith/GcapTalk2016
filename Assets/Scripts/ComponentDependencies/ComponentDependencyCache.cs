@@ -105,6 +105,8 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
     [UnityEditor.InitializeOnLoadMethod]
     static void ProcessAll()
     {
+        ResourceSingletonBuilder.BuildResourceSingletonsIfDirty();
+
         var types = new string[] {".cs", ".js"};
 
         var allScriptPaths = Directory.GetFiles("Assets", "*.*", SearchOption.AllDirectories)
