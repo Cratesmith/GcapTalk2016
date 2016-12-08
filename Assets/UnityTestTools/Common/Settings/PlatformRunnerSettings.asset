@@ -8,7 +8,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 80803e432b7ad48af8da860ed3b02146, type: 3}
-  m_Name: ManagerAttributeCache
+  m_Script: {fileID: 11500000, guid: 964f5f0db2c95bb41aa3dc3beba1f06b, type: 3}
+  m_Name: PlatformRunnerSettings
   m_EditorClassIdentifier: 
-  m_serializedAttributes: []
+  resultsPath: 
+  sendResultsOverNetwork: 1
+  port: 9090

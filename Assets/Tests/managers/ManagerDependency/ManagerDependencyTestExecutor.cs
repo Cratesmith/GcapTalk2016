@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 using UnityEngine.Assertions;
 
-public class GlobalManagerTestExecutor : BaseMonoBehaviour
+public class ManagerDependencyTestExecutor : BaseMonoBehaviour
 {
     protected override void Awake()
     {
@@ -12,8 +12,8 @@ public class GlobalManagerTestExecutor : BaseMonoBehaviour
 
     IEnumerator TestCoroutine()
     {
-        Debug.Log("GlobalManagerTestExecutor: Starting test");
-        var manager = GetManager<GlobalTestManager>();
+        Debug.Log("ManagerDependencyTestExecutor: Starting test");
+        var manager = GetManager<DependencyTestManager>();
         Assert.IsNotNull(manager);
         yield return new WaitForSeconds(0.5f);
         Assert.IsTrue(manager.awakes==1);
@@ -23,7 +23,5 @@ public class GlobalManagerTestExecutor : BaseMonoBehaviour
         Assert.IsTrue(manager.lateUpdates>1);
 
         IntegrationTest.Pass();
-
-        Destroy(manager.container); // destroy the global container so it doesn't continue into other tests.
     }
 }

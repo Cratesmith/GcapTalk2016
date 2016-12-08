@@ -33,7 +33,7 @@ public class TestManager : Manager
         base.OnStart();
         ++starts;
 
-        LogMethod("OnStart");
+//        LogMethod("OnStart");
         Assert.AreEqual(awakes,1, "Only awake once");
         Assert.AreEqual(starts,1, "Only start once");
         Assert.IsFalse(updates>0, "No update before start/awake");
@@ -46,7 +46,7 @@ public class TestManager : Manager
         base.OnUpdate();
         ++updates;
 
-        LogMethod("OnUpdate");
+//        LogMethod("OnUpdate");
         Assert.AreEqual(awakes,1, "Only awake once");
         Assert.AreEqual(starts,1, "Only start once");
         Assert.IsTrue(updates>0, "Must have updated");
@@ -58,7 +58,7 @@ public class TestManager : Manager
         base.OnFixedUpdate();
         ++fixedUpdates;
 
-        LogMethod("OnFixedUpdate");
+//        LogMethod("OnFixedUpdate");
         Assert.AreEqual(awakes,1, "Only awake once");
         Assert.AreEqual(starts,1, "Only start once");
         Assert.IsTrue(fixedUpdates>0, "Must have fixedupdated");
@@ -69,7 +69,7 @@ public class TestManager : Manager
         base.OnLateUpdate();
         ++lateUpdates;
 
-        LogMethod("OnLateUpdate");
+//        LogMethod("OnLateUpdate");
         Assert.AreEqual(awakes,1, "Only awake once");
         Assert.AreEqual(starts,1, "Only start once");
         Assert.IsTrue(updates>0, "Must have updated");

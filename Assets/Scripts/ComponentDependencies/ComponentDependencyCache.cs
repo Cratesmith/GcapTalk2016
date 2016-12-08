@@ -160,9 +160,10 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
         }
 
         instance.hideFlags = HideFlags.NotEditable;
-
+        UnityEditor.EditorUtility.SetDirty(instance);
         var so = new UnityEditor.SerializedObject(instance);       
-        so.Update();
+        so.UpdateIfDirtyOrScript();
+        UnityEditor.AssetDatabase.SaveAssets();
     }
     #endif
 

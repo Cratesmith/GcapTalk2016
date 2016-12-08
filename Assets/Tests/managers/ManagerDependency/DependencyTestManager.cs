@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 using UnityEngine.Assertions;
 
-[ManagerDependencyAttribute(typeof(TestManager))]
+[ManagerDependency(typeof(TestManager))]
 public class DependencyTestManager : TestManager 
 {
     public TestManager dependency;

@@ -65,8 +65,9 @@ ISerializationCallbackReceiver
             var assembly = GetType().Assembly;
             managerType  = !string.IsNullOrEmpty(source.managerTypeName) ? assembly.GetType(source.managerTypeName):null;
             var list = new List<System.Type>();
-            if(managerDepenedencyTypes!=null)
+            if(source.managerDependencyTypeNames!=null)
             {
+                managerDepenedencyTypes = new System.Type[source.managerDependencyTypeNames.Length];
                 for(int i=0; i<managerDepenedencyTypes.Length; ++i)
                 {
                     if(string.IsNullOrEmpty(source.managerDependencyTypeNames[i])) continue;
@@ -79,7 +80,7 @@ ISerializationCallbackReceiver
 
             managerDependencyTypesLookup = new HashSet<System.Type>(managerDepenedencyTypes);
         }
-
+            
         public System.Type          managerType;
         public bool                 isAlwaysGlobal;
         public System.Type[]        managerDepenedencyTypes;
@@ -87,7 +88,6 @@ ISerializationCallbackReceiver
 
     }
     Dictionary<System.Type, ManagerAttributes> m_attributes = new Dictionary<System.Type, ManagerAttributes>();
-
 
     #region ISerializationCallbackReceiver implementation
     void ISerializationCallbackReceiver.OnBeforeSerialize()
@@ -100,18 +100,18 @@ ISerializationCallbackReceiver
         {
             m_serializedAttributes[i] = new SerializedManagerAttributes(e.Current);
             ++i;
-        }
+        } 
     }
     void ISerializationCallbackReceiver.OnAfterDeserialize()
     {
-        #if !UNITY_EDITOR
+//        Debug.Log("ManagerAttributeCache: Loading Attributes");
         m_attributes.Clear();
         for(int i=0; i<m_serializedAttributes.Length; ++i)
         {
             var attributes = new ManagerAttributes(m_serializedAttributes[i]);
+//            Debug.Log("ManagerAttributeCache: "+attributes);
             m_attributes.Add(attributes.managerType, attributes);
         }
-        #endif
     }
     #endregion
 
@@ -136,12 +136,12 @@ ISerializationCallbackReceiver
             var type = script.GetClass();  
             instance.m_attributes[type] = new ManagerAttributes(type);
         }
-
+           
         instance.hideFlags = HideFlags.NotEditable;
-
-        var so = new UnityEditor.SerializedObject(instance);
-        so.Update();
-        so.ApplyModifiedProperties();
+        UnityEditor.EditorUtility.SetDirty(instance);
+        var so = new UnityEditor.SerializedObject(instance);       
+        so.UpdateIfDirtyOrScript();
+        UnityEditor.AssetDatabase.SaveAssets();
     }
     #endif
 

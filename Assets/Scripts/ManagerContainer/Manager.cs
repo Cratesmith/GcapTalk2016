@@ -31,7 +31,7 @@ public abstract class Manager : ScriptableObject
     {
         if(!ManagerAttributeCache.DoesManagerDependOn(GetType(), typeof(T)))
         {
-            Debug.LogError(string.Format("{0} doesn't implement IManagerDependency<{1}>", GetType().Name, typeof(T).Name));
+            Debug.LogError(string.Format("{0} Doesn't depend on {1}, it must have the attribute [ManagerDependency(typeof({1}))]", GetType().Name, typeof(T).Name));
             return null;
         }
 
