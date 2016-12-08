@@ -26,8 +26,25 @@ public class ManagerContainerExecutor : MonoBehaviour
         }
     }
 
-    void Awake()          { ManagerContainer.InitAllContainers();  m_initialized = true;}
-    void Update()         { ManagerContainer.Execute(x=>x.OnUpdate()); }
-    void FixedUpdate()    { ManagerContainer.Execute(x=>x.OnFixedUpdate()); }
-    void LateUpdate()     { ManagerContainer.Execute(x=>x.OnLateUpdate()); }
+    void Awake()          
+    { 
+        ManagerContainer.InitAllContainers();
+        m_initialized = true;
+    }
+
+    void Update()         
+    { 
+        ManagerContainer.StartOfFrame(); 
+        ManagerContainer.Execute(x=>x.OnUpdate()); 
+    }
+
+    void FixedUpdate()    
+    { 
+        ManagerContainer.Execute(x=>x.OnFixedUpdate()); 
+    }
+
+    void LateUpdate()     
+    {
+        ManagerContainer.Execute(x=>x.OnLateUpdate()); 
+    }
 }
