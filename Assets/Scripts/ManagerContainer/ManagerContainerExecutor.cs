@@ -32,19 +32,22 @@ public class ManagerContainerExecutor : MonoBehaviour
         m_initialized = true;
     }
 
+    static readonly System.Action<Manager> callOnUpdate = (x)=>x.OnUpdate();
     void Update()         
     { 
         ManagerContainer.StartOfFrame(); 
-        ManagerContainer.Execute(x=>x.OnUpdate()); 
+        ManagerContainer.ExecuteOnAllManagers(callOnUpdate); 
     }
-
+    
+    static readonly System.Action<Manager> callFixedUpdate = (x)=>x.OnFixedUpdate();
     void FixedUpdate()    
     { 
-        ManagerContainer.Execute(x=>x.OnFixedUpdate()); 
+        ManagerContainer.ExecuteOnAllManagers(callFixedUpdate); 
     }
 
+    static readonly System.Action<Manager> callLateUpdate = (x)=>x.OnLateUpdate();
     void LateUpdate()     
     {
-        ManagerContainer.Execute(x=>x.OnLateUpdate()); 
+        ManagerContainer.ExecuteOnAllManagers(callLateUpdate); 
     }
 }

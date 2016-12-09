@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 
 /// <summary>
@@ -62,6 +63,7 @@ public partial class ManagerContainer : MonoBehaviour
 
     void StartNewManagers()
     {
+        Profiler.BeginSample("ManagerContainer.StartNewManagers");
         for (int i = 0; i < m_managersToStart.Count; ++i)
         {
             var manager = m_managersToStart[i];
@@ -76,6 +78,7 @@ public partial class ManagerContainer : MonoBehaviour
         {
             m_managersToStart.RemoveAll(x => x.enabled == true);
         }
+        Profiler.EndSample();
     }
 
     Manager AutoconstructManager(System.Type managerType)
@@ -122,25 +125,30 @@ public partial class ManagerContainer : MonoBehaviour
 
     void ExecuteOnManagers(System.Action<Manager> action)
     {
+        Profiler.BeginSample("ManagerContainer.ExecuteOnManagers");
         for(int i=0;i<m_managersToExecute.Count; ++i) {
             var manager = m_managersToExecute[i];
             if(!manager.enabled) continue;                
             action.Invoke(manager);
         }
+        Profiler.EndSample();
     }
 
     public static void InitAllContainers()
     {
-        ExecuteOnContainer(container=>container.InitContainer());       
+        ExecuteOnAllContainers(container=>container.InitContainer());       
     }
         
     public static void StartOfFrame()
     {
-        ExecuteOnContainer(container=>container.StartNewManagers());
+        Profiler.BeginSample("ManagerContainer.StartOfFrame");
+        ExecuteOnAllContainers(container=>container.StartNewManagers());
+        Profiler.EndSample();
     }
 
-    static void ExecuteOnContainer(System.Action<ManagerContainer> action)
+    static void ExecuteOnAllContainers(System.Action<ManagerContainer> action)
     {
+        Profiler.BeginSample("ManagerContainer.ExecuteOnAllContainers");
         if(s_globalContainer) 
         {
             action(s_globalContainer);
@@ -152,10 +160,23 @@ public partial class ManagerContainer : MonoBehaviour
             if(e.Current.Value.isGlobalContainer) continue;
             action(e.Current.Value);
         }
-    }
+        Profiler.EndSample();
+    }    
 
-    public static void Execute(System.Action<Manager> action)
+    public static void ExecuteOnAllManagers(System.Action<Manager> action)
     {
-        ExecuteOnContainer(container=>container.ExecuteOnManagers(action));
+        Profiler.BeginSample("ManagerContainer.ExecuteOnAllManagers");
+        if(s_globalContainer) 
+        {
+            s_globalContainer.ExecuteOnManagers(action);
+        }
+
+        var e = s_managerContainers.GetEnumerator();
+        while(e.MoveNext()) 
+        {
+            if(e.Current.Value.isGlobalContainer) continue;
+            e.Current.Value.ExecuteOnManagers(action);
+        }
+        Profiler.EndSample();
     }
 }
