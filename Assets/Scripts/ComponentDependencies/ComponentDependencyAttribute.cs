@@ -13,6 +13,7 @@ using System.Linq;
 /// <summary>
 /// This component depends on another component
 /// </summary>
+[System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple = true)]
 public class ComponentDependencyAttribute : ScriptDependencyAttribute
 {   
     public Type defaultComponentType        {get;private set;}

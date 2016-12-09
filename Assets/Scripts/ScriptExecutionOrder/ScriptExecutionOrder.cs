@@ -11,7 +11,7 @@ using System.Linq;
 /// <summary>
 /// Sets the script exection order to a specific value.
 /// </summary>
-[System.AttributeUsage(System.AttributeTargets.All)]
+[System.AttributeUsage(System.AttributeTargets.Class)]
 public class ScriptExecutionOrderAttribute : System.Attribute 
 {
 	public readonly int order;
@@ -26,7 +26,7 @@ public class ScriptExecutionOrderAttribute : System.Attribute
 /// Exection order for all scripts in a dependency chain are automatically assigned.
 /// This respects order values set by ScriptExecutionOrderAttribute, and will show a warning if that's not possible.
 /// </summary>
-[System.AttributeUsage(System.AttributeTargets.Class)]
+[System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple = true)]
 public class ScriptDependencyAttribute : System.Attribute
 {
     public readonly Type scriptDependencyType;
@@ -317,7 +317,15 @@ public static class ScriptExecutionOrder
             for(int i=0;i<deps.Length; ++i)
             {
                 if(deps[i]==null) continue;
+
+                if (!typeof(ScriptableObject).IsAssignableFrom(deps[i]) &&
+                    !typeof(MonoBehaviour).IsAssignableFrom(deps[i]))
+                {
+                    continue;
+                }
+
                 UnityEditor.MonoScript depScript = null;
+
                 Debug.Assert(lookup.ContainsKey(deps[i]), "ScriptDependency type "+deps[i].Name+" not found found for script "+current.name+"! Check that it exists in a file with the same name as the class");
                 if(lookup.TryGetValue(deps[i], out depScript) && SortDependencies_HasFixedOrder(depScript))
                 {
@@ -330,6 +338,13 @@ public static class ScriptExecutionOrder
             for(int i=0;i<deps.Length; ++i)
             {
                 if(deps[i]==null) continue;
+
+                if (!typeof(ScriptableObject).IsAssignableFrom(deps[i]) &&
+                    !typeof(MonoBehaviour).IsAssignableFrom(deps[i]))
+                {
+                    continue;
+                }
+
                 UnityEditor.MonoScript depScript = null;
                 Debug.Assert(lookup.ContainsKey(deps[i]), "ScriptDependency type "+deps[i].Name+" not found found for script "+current.name+"! Check that it exists in a file with the same name as the class");
                 if(lookup.TryGetValue(deps[i], out depScript) && !SortDependencies_HasFixedOrder(depScript))

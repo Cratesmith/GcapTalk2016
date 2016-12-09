@@ -33,9 +33,10 @@ public abstract class ResourceSingleton<T> : ScriptableObject where T:Scriptable
                 s_instance = Resources.Load(typeof(T).Name) as T;
             }
         }
-        else 
+
+        #if UNITY_EDITOR
+        if(!s_instance) 
         {
-            #if UNITY_EDITOR
             ResourceSingletonBuilder.BuildResourceSingletonsIfDirty(); // ensure that singletons were built
 
             var temp = ScriptableObject.CreateInstance<T>();
@@ -45,8 +46,9 @@ public abstract class ResourceSingleton<T> : ScriptableObject where T:Scriptable
             var assetDir    = Path.GetDirectoryName(scriptPath)+"/Resources/";
             var assetPath   = assetDir+Path.GetFileNameWithoutExtension(scriptPath)+".asset";
             s_instance = AssetDatabase.LoadAssetAtPath<T>(assetPath);
-            #endif
+            
         }
+        #endif
     }
 }
 
@@ -73,7 +75,7 @@ public static class ResourceSingletonBuilder
         BuildResourceSingletons();
     }
 
-    static void BuildResourceSingletons()
+    public static void BuildResourceSingletons()
     {
         var result = System.Reflection.Assembly.GetExecutingAssembly()
             .GetTypes()

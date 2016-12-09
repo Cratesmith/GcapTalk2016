@@ -10,6 +10,7 @@ public partial class GlobalDefaults : ResourceSingleton<GlobalDefaults>
 }
     
 [ComponentDependency(typeof(PreviewModel))]
+[ComponentDependency(typeof(Rigidbody))]
 public class ActorPlayer : BaseMonoBehaviour, IPreviewModelSource
 {
     #region settings
