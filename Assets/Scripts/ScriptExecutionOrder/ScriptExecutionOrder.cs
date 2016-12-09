@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using Type = System.Type;
 
 #if UNITY_EDITOR
@@ -99,12 +100,12 @@ public static class ScriptExecutionOrder
                 continue;
             }
 
-            /*
+            
             Debug.Log("ScriptExectionOrder: Island:"+i+" starts at "+newDepOrder
                 +" Scripts:"+string.Join(",", currentIsland
                     .Select(x=>fixedOrders.ContainsKey(x.script) ? (x.script.name+"["+fixedOrders[x.script]+"]"):x.script.name)
                     .ToArray()));
-            */
+            
 
             // 
             // apply priorities in order
@@ -190,11 +191,45 @@ public static class ScriptExecutionOrder
         var sortedItems = new List<UnityEditor.MonoScript>();
         var connections = new Dictionary<UnityEditor.MonoScript, HashSet<UnityEditor.MonoScript>>();
 
+        // add everything to lookup
         for(int i=0;i<scriptsToSort.Length;++i)
         {
             var script = scriptsToSort[i];
             if(script==null) continue;
             lookup[script.GetClass()] = script;
+        }
+
+        // build connection graph
+        for (int i = 0; i < scriptsToSort.Length; ++i)
+        {
+            var script = scriptsToSort[i];
+            if(script==null) continue;
+            if(!SortDependencies_HasDependencies(script)) continue;
+            var deps = SortDependencies_GetDependencies(scriptsToSort[i]);
+            for(int j=0; j < deps.Length; ++j)
+            {
+                var depType = deps[j];
+                if(depType==null) continue;
+
+                MonoScript depScript = null;
+                if(!lookup.TryGetValue(depType, out depScript)) continue;
+
+                // forward
+                HashSet<UnityEditor.MonoScript> forwardSet = null;
+                if (!connections.TryGetValue(script, out forwardSet))
+                {
+                    connections[script] = forwardSet = new HashSet<MonoScript>();
+                }
+                forwardSet.Add(depScript);
+                
+                // reverse
+                HashSet<UnityEditor.MonoScript> reverseSet = null;
+                if (!connections.TryGetValue(depScript, out reverseSet))
+                {
+                    connections[depScript] = reverseSet = new HashSet<MonoScript>();
+                }
+                reverseSet.Add(script);
+            }           
         }
 
         // sort fixed order items first
@@ -204,18 +239,34 @@ public static class ScriptExecutionOrder
             if(script==null) continue;
             if(!SortDependencies_HasDependencies(script)) continue;
             if(!SortDependencies_HasFixedOrder(script)) continue;
-            SortDependencies_Visit(script, visited, sortedItems, lookup, connections, null);
+            SortDependencies_Visit(script, visited, sortedItems, lookup, null, connections);
         }
-
-        // then sort non-fixed ones
-        for(int i=0;i<scriptsToSort.Length;++i)
+        
+        // do any leaves first
+        for(int i=0;i<scriptsToSort.Length;++i) 
         {
             var script = scriptsToSort[i];
-            if(script==null) continue;
-            if(!SortDependencies_HasDependencies(script)) continue;
-            if(SortDependencies_HasFixedOrder(script)) continue;
-            SortDependencies_Visit(script, visited, sortedItems, lookup, connections, null);
+            if (script==null) continue;
+
+            HashSet<MonoScript> connectionSet = null;
+            if (connections.TryGetValue(script, out connectionSet))
+            {
+                if(SortDependencies_GetDependencies(script).Length != connections[script].Count) continue;               
+            }
+
+            SortDependencies_Visit(script, visited, sortedItems, lookup, null, connections);
         }
+
+        // then then any that remain
+        //removeScripts.Clear();
+        for(int i=0;i<scriptsToSort.Length;++i) 
+        {
+            var script = scriptsToSort[i];
+            if (script==null) continue;
+            if(!SortDependencies_HasDependencies(script)) continue;
+            SortDependencies_Visit(script, visited, sortedItems, lookup, null, connections);
+        }
+        //remainingScripts.RemoveAll(remainingScripts.Contains);
          
 
         //Debug.Log("ScriptExecutionOrder: Sorted dependencies: "+string.Join(", ",sortedItems.Select(x=>x.name).ToArray()));
@@ -288,22 +339,10 @@ public static class ScriptExecutionOrder
         HashSet<UnityEditor.MonoScript> visited,
         List<UnityEditor.MonoScript> sortedItems,
         Dictionary<Type, UnityEditor.MonoScript> lookup,
-        Dictionary<UnityEditor.MonoScript, HashSet<UnityEditor.MonoScript>> connections,
-        UnityEditor.MonoScript visitedBy)
-    {
-        // 
-        // Table all connections so islands can be calculated 
-        HashSet<UnityEditor.MonoScript> currentConnectionSet = null;
-        if(!connections.TryGetValue(current, out currentConnectionSet))
-        {
-            connections[current] = currentConnectionSet = new HashSet<UnityEditor.MonoScript>();
-        }
-
-        if(visitedBy!=null)
-        {
-            currentConnectionSet.Add(visitedBy);
-        }
-            
+        UnityEditor.MonoScript visitedBy,
+        Dictionary<UnityEditor.MonoScript, HashSet<UnityEditor.MonoScript>> connections
+        )
+    {            
         if(visited.Add(current))  
         {  
             //
@@ -311,47 +350,32 @@ public static class ScriptExecutionOrder
             // this ensures that
             // 1. all dependencies are sorted
             // 2. cyclic dependencies can be caught if an item is visited AND it's been added to this list
-            var deps = SortDependencies_GetDependencies(current);
+            var depsRemaining = SortDependencies_GetDependencies(current);
+
+            var visitedFrom = current;
 
             // do deps with fixed orders first
-            for(int i=0;i<deps.Length; ++i)
+            for(int i=0;i<depsRemaining.Length; ++i)
             {
-                if(deps[i]==null) continue;
-
-                if (!typeof(ScriptableObject).IsAssignableFrom(deps[i]) &&
-                    !typeof(MonoBehaviour).IsAssignableFrom(deps[i]))
-                {
-                    continue;
-                }
-
-                UnityEditor.MonoScript depScript = null;
-
-                Debug.Assert(lookup.ContainsKey(deps[i]), "ScriptDependency type "+deps[i].Name+" not found found for script "+current.name+"! Check that it exists in a file with the same name as the class");
-                if(lookup.TryGetValue(deps[i], out depScript) && SortDependencies_HasFixedOrder(depScript))
-                {
-                    currentConnectionSet.Add(depScript);
-                    SortDependencies_Visit(depScript, visited, sortedItems, lookup, connections, current);
-                }
+                SortDependencies_Visit_VisitDependency(visited, sortedItems, lookup, connections, depsRemaining[i], visitedFrom,
+                    true,
+                    false);
             }
 
-            // then ones without fixed orders
-            for(int i=0;i<deps.Length; ++i)
+            // then leaves
+            for(int i=0;i<depsRemaining.Length; ++i)
             {
-                if(deps[i]==null) continue;
+                SortDependencies_Visit_VisitDependency(visited, sortedItems, lookup, connections, depsRemaining[i], visitedFrom,
+                    false,
+                    true);
+            }
 
-                if (!typeof(ScriptableObject).IsAssignableFrom(deps[i]) &&
-                    !typeof(MonoBehaviour).IsAssignableFrom(deps[i]))
-                {
-                    continue;
-                }
-
-                UnityEditor.MonoScript depScript = null;
-                Debug.Assert(lookup.ContainsKey(deps[i]), "ScriptDependency type "+deps[i].Name+" not found found for script "+current.name+"! Check that it exists in a file with the same name as the class");
-                if(lookup.TryGetValue(deps[i], out depScript) && !SortDependencies_HasFixedOrder(depScript))
-                {
-                    currentConnectionSet.Add(depScript);
-                    SortDependencies_Visit(depScript, visited, sortedItems, lookup, connections, current);
-                }
+            // then any remaining ones
+            for(int i=0;i<depsRemaining.Length; ++i)
+            {
+                SortDependencies_Visit_VisitDependency(visited, sortedItems, lookup, connections, depsRemaining[i], visitedFrom,
+                    false,
+                    false);
             }
 
             sortedItems.Add( current );
@@ -359,6 +383,44 @@ public static class ScriptExecutionOrder
         else
         {
             Debug.Assert(sortedItems.Contains(current), "Cyclic dependency found for ScriptDependency "+current.name+" via "+(visitedBy!=null?visitedBy.name:"Unknown")+"!");
+        }
+    }
+
+    private static void SortDependencies_Visit_VisitDependency(HashSet<MonoScript> visited, List<MonoScript> sortedItems, Dictionary<Type, MonoScript> lookup,
+        Dictionary<MonoScript, HashSet<MonoScript>> connections, Type depType, MonoScript visitedFrom, bool fixedOrderDeps, bool leafDeps)
+    {
+        if (depType == null) return;
+        
+        if (!typeof(ScriptableObject).IsAssignableFrom(depType) &&
+            !typeof(MonoBehaviour).IsAssignableFrom(depType))
+        {
+            return;
+        }
+
+        MonoScript depScript = null;                   
+        if (!lookup.TryGetValue(depType, out depScript))
+        {
+            Debug.LogError("ScriptDependency type " + depType.Name + " not found found for script " + visitedFrom.name +
+                "! Check that it exists in a file with the same name as the class");
+            return;
+        }
+
+        if (fixedOrderDeps && !SortDependencies_HasFixedOrder(depScript))
+        {
+            return;
+        }
+
+        HashSet<MonoScript> connectionSet = null;
+        if (leafDeps 
+            && connections.TryGetValue(depScript, out connectionSet)
+            && SortDependencies_GetDependencies(depScript).Length != connectionSet.Count)
+        {
+            return;               
+        }
+
+        if (lookup.TryGetValue(depType, out depScript) && !SortDependencies_HasFixedOrder(depScript))
+        {
+            SortDependencies_Visit(depScript, visited, sortedItems, lookup, visitedFrom, connections);
         }
     }
 
