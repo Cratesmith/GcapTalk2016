@@ -1,10 +1,10 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor;
 using Type = System.Type;
 
 #if UNITY_EDITOR
+using UnityEditor;
 using System.IO;
 using System.Linq;
 #endif
