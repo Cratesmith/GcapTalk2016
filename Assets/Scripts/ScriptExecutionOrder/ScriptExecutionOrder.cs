@@ -9,6 +9,8 @@ using System.IO;
 using System.Linq;
 #endif
 
+//#define LOG_DEBUG
+
 /// <summary>
 /// Sets the script exection order to a specific value.
 /// </summary>
@@ -45,7 +47,21 @@ public class ScriptDependencyAttribute : System.Attribute
 #if UNITY_EDITOR 
 public static class ScriptExecutionOrder
 {
-    [UnityEditor.InitializeOnLoadMethod]
+    public class Builder : UnityEditor.AssetPostprocessor
+    {
+        static void OnPostprocessAllAssets (string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths) 
+        {
+            if(importedAssets
+                .Concat(movedAssets)
+                .Concat(deletedAssets)
+                .Any(x=> x.EndsWith(".cs") || x.EndsWith(".js")))
+            {
+                ScriptExecutionOrder.ProcessAll();
+            }
+        }
+    }
+
+    //[UnityEditor.InitializeOnLoadMethod]
     static void ProcessAll()
     {
         var types = new string[] {".cs", ".js"};
@@ -99,16 +115,17 @@ public static class ScriptExecutionOrder
             {
                 continue;
             }
-            
-            
+
+#if LOG_DEBUG            
             Debug.Log("ScriptExectionOrder: Island:"+i+" starts at "+newDepOrder
                 +" Scripts:"+string.Join(", ", currentIsland
                     .Select(x=>(fixedOrders.ContainsKey(x.script) 
                         ? (x.script.name+"["+fixedOrders[x.script]+"]")
                         : x.script.name)+"("+x.isLeaf+")")
-                    .ToArray()));                       
-                    
-                
+                    .ToArray()));
+#endif
+
+
             // 
             // apply priorities in order
             for(int j=0; j<currentIsland.Length; ++j)

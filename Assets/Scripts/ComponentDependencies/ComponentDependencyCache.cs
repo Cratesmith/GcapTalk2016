@@ -103,6 +103,20 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
     #endif
 
     #if UNITY_EDITOR
+    public class Builder : UnityEditor.AssetPostprocessor
+    {
+        static void OnPostprocessAllAssets (string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths) 
+        {
+            if(importedAssets
+                .Concat(movedAssets)
+                .Concat(deletedAssets)
+                .Any(x=> x.EndsWith(".cs") || x.EndsWith(".js")))
+            {
+                ComponentDependencyCache.ProcessDependencies();
+            }
+        }
+    }
+    /*
     [UnityEditor.InitializeOnLoadMethod]
     static void InitializeOnLoad()
     {
@@ -115,7 +129,7 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
             UnityEditor.EditorApplication.delayCall += ProcessDependencies;
         }        
     }
-   
+    */
     [UnityEditor.Callbacks.PostProcessScene]
     static void PostProcessScene()
     {
@@ -127,7 +141,7 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
 
     private static void ProcessDependencies()
     {
-        ResourceSingletonBuilder.BuildResourceSingletons();
+        ResourceSingletonBuilder.BuildResourceSingletonsIfDirty();
 
         var types = new string[] { ".cs", ".js" };
 
@@ -223,7 +237,9 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
                   
                 if(dependency.requiredType==null)
                 {
-                    Debug.LogError("ComponentDependencyCache: Could not find type "+dep.requiredTypeName);
+#if DEBUG_LOG
+                    Debug.Log("ComponentDependencyCache: Skipping missing type "+dep.requiredTypeName);
+#endif
                     continue;
                 }
 
