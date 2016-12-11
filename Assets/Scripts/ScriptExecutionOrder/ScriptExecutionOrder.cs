@@ -61,7 +61,7 @@ public static class ScriptExecutionOrder
             UnityEditor.MonoScript script = UnityEditor.AssetDatabase.LoadAssetAtPath(allScriptPaths[i], typeof(UnityEditor.MonoScript)) as UnityEditor.MonoScript;
             if(!script || script.GetClass()==null) continue;
             int newOrder = 0;
-            if(DetectFixedOrderByAttribute(script, out newOrder))
+            if(GetFixedOrder(script, out newOrder))
             {
                 fixedOrders[script] = newOrder;
             }
@@ -99,14 +99,16 @@ public static class ScriptExecutionOrder
             {
                 continue;
             }
-
+            
             
             Debug.Log("ScriptExectionOrder: Island:"+i+" starts at "+newDepOrder
-                +" Scripts:"+string.Join(",", currentIsland
-                    .Select(x=>fixedOrders.ContainsKey(x.script) ? (x.script.name+"["+fixedOrders[x.script]+"]"):x.script.name)
-                    .ToArray()));
-            
-
+                +" Scripts:"+string.Join(", ", currentIsland
+                    .Select(x=>(fixedOrders.ContainsKey(x.script) 
+                        ? (x.script.name+"["+fixedOrders[x.script]+"]")
+                        : x.script.name)+"("+x.isLeaf+")")
+                    .ToArray()));                       
+                    
+                
             // 
             // apply priorities in order
             for(int j=0; j<currentIsland.Length; ++j)
@@ -124,15 +126,10 @@ public static class ScriptExecutionOrder
                     fixedOrders.Remove(script);
                 } 
                 else if(fixedOrders.Count==0)
-                {
-                    if(isLeaf)
-                    {
-                        newDepOrder = Mathf.Max(0, newDepOrder);
-                    }
-                    else 
-                    {
-                        newDepOrder = Mathf.Max(-currentIsland.Length, newDepOrder);
-                    }
+                {                    
+                    newDepOrder = isLeaf && !currentIsland.Skip(j+1).Any(x=>x.isLeaf)
+                        ? Mathf.Max(0, newDepOrder) 
+                        : Mathf.Max(-currentIsland.Length, newDepOrder);
                 }   
 
                 scriptOrders[script] = newDepOrder;
@@ -156,30 +153,7 @@ public static class ScriptExecutionOrder
                 UnityEditor.MonoImporter.SetExecutionOrder(script, order);
             }
         }
-    }
-
-    /// <summary>
-    /// Does this script have a fixed exection order from ScriptExectionOrderAttribute? If so what is it's value?
-    /// </summary>
-    static bool DetectFixedOrderByAttribute(UnityEditor.MonoScript script, out int order)
-    {
-        order = 0;
-        //var script = UnityEditor.AssetDatabase.LoadAssetAtPath(path, typeof(UnityEditor.MonoScript)) as UnityEditor.MonoScript;
-        if(!script || script.GetClass()==null)
-        {
-            return false;
-        }
-
-        order = UnityEditor.MonoImporter.GetExecutionOrder(script);
-        var attrib = script.GetClass().GetCustomAttributes(typeof(ScriptExecutionOrderAttribute), true).Cast<ScriptExecutionOrderAttribute>().FirstOrDefault();
-        if(attrib == null) 
-        {
-            return false;
-        }
-
-        order = attrib.order;
-        return true;
-    }
+    }    
 
     /// <summary>
     /// Sort the scripts by dependencies 
@@ -204,8 +178,8 @@ public static class ScriptExecutionOrder
         {
             var script = scriptsToSort[i];
             if(script==null) continue;
-            if(!SortDependencies_HasDependencies(script)) continue;
-            var deps = SortDependencies_GetDependencies(scriptsToSort[i]);
+            if(!HasDependencies(script)) continue;
+            var deps = GetScriptDependencies(scriptsToSort[i]);
             for(int j=0; j < deps.Length; ++j)
             {
                 var depType = deps[j];
@@ -236,9 +210,8 @@ public static class ScriptExecutionOrder
         for(int i=0;i<scriptsToSort.Length;++i) 
         {
             var script = scriptsToSort[i];
-            if(script==null) continue;
-            if(!SortDependencies_HasDependencies(script)) continue;
-            if(!SortDependencies_HasFixedOrder(script)) continue;
+            if(script==null || !HasDependencies(script)) continue;
+            if(!HasFixedOrder(script)) continue;
             SortDependencies_Visit(script, visited, sortedItems, lookup, null, connections);
         }
         
@@ -246,27 +219,25 @@ public static class ScriptExecutionOrder
         for(int i=0;i<scriptsToSort.Length;++i) 
         {
             var script = scriptsToSort[i];
-            if (script==null) continue;
+            if(script==null || !HasDependencies(script)) continue;
 
             HashSet<MonoScript> connectionSet = null;
-            if (connections.TryGetValue(script, out connectionSet))
+            if (connections.TryGetValue(script, out connectionSet) 
+                && GetScriptDependencies(script).Length != connections[script].Count)
             {
-                if(SortDependencies_GetDependencies(script).Length != connections[script].Count) continue;               
+                continue;               
             }
 
             SortDependencies_Visit(script, visited, sortedItems, lookup, null, connections);
         }
 
         // then then any that remain
-        //removeScripts.Clear();
         for(int i=0;i<scriptsToSort.Length;++i) 
         {
             var script = scriptsToSort[i];
-            if (script==null) continue;
-            if(!SortDependencies_HasDependencies(script)) continue;
+            if(script==null || !HasDependencies(script)) continue;
             SortDependencies_Visit(script, visited, sortedItems, lookup, null, connections);
         }
-        //remainingScripts.RemoveAll(remainingScripts.Contains);
          
 
         //Debug.Log("ScriptExecutionOrder: Sorted dependencies: "+string.Join(", ",sortedItems.Select(x=>x.name).ToArray()));
@@ -305,7 +276,7 @@ public static class ScriptExecutionOrder
                     foreach (var connection in currentConnections)
                     {
                         // leaves are scripts that no other scripts depend on
-                        if(SortDependencies_GetDependencies(current).Length == currentConnections.Count)
+                        if(GetScriptDependencies(current).Length == currentConnections.Count)
                         {
                             leaves.Add(current);
                         }
@@ -350,7 +321,7 @@ public static class ScriptExecutionOrder
             // this ensures that
             // 1. all dependencies are sorted
             // 2. cyclic dependencies can be caught if an item is visited AND it's been added to this list
-            var depsRemaining = SortDependencies_GetDependencies(current);
+            var depsRemaining = GetScriptDependencies(current);
 
             var visitedFrom = current;
 
@@ -405,7 +376,7 @@ public static class ScriptExecutionOrder
             return;
         }
 
-        if (fixedOrderDeps && !SortDependencies_HasFixedOrder(depScript))
+        if (fixedOrderDeps && !HasFixedOrder(depScript))
         {
             return;
         }
@@ -413,12 +384,12 @@ public static class ScriptExecutionOrder
         HashSet<MonoScript> connectionSet = null;
         if (leafDeps 
             && connections.TryGetValue(depScript, out connectionSet)
-            && SortDependencies_GetDependencies(depScript).Length != connectionSet.Count)
+            && GetScriptDependencies(depScript).Length != connectionSet.Count)
         {
             return;               
         }
 
-        if (lookup.TryGetValue(depType, out depScript) && !SortDependencies_HasFixedOrder(depScript))
+        if (lookup.TryGetValue(depType, out depScript) && !HasFixedOrder(depScript))
         {
             SortDependencies_Visit(depScript, visited, sortedItems, lookup, visitedFrom, connections);
         }
@@ -427,44 +398,81 @@ public static class ScriptExecutionOrder
     /// <summary>
     /// Does this script have dependencies?
     /// </summary>
-    static bool SortDependencies_HasDependencies(UnityEditor.MonoScript script)
+    static bool HasDependencies(UnityEditor.MonoScript script)
     {
-        if(script==null) return false;
-        var attribs = script.GetClass().GetCustomAttributes(typeof(ScriptDependencyAttribute), true);
-        return attribs.Length > 0;
+        return GetScriptDependencies(script).Length > 0;
     }
 
     /// <summary>
-    /// Does this script have dependencies?
+    /// Does this script have fixed order?
     /// </summary>
-    static bool SortDependencies_HasFixedOrder(UnityEditor.MonoScript script)
+    static bool HasFixedOrder(UnityEditor.MonoScript script)
     {
-        if(script==null) return false;
-        var attribs = script.GetClass().GetCustomAttributes(typeof(ScriptExecutionOrderAttribute), true);
-        return attribs.Length > 0;
+        int output = 0;
+        return GetFixedOrder(script, out output);
     }
 
     /// <summary>
     /// Get the dependencies for a script using the lookup table
     /// </summary>
-    static Type[] SortDependencies_GetDependencies( UnityEditor.MonoScript current)
+    private static Dictionary<MonoScript, Type[]> s_dependencyAttributes = new Dictionary<MonoScript, Type[]>();
+    static Type[] GetScriptDependencies( UnityEditor.MonoScript script)
     {
-        if(current==null) return new Type[0];
+        if(script==null) return new Type[0];
 
-        var currentType = current.GetClass();
+        var currentType = script.GetClass();
         if(currentType==null) return new Type[0];
 
-        List<Type> types = new List<Type>();
-
-        var attribs = currentType.GetCustomAttributes(typeof(ScriptDependencyAttribute), true);
-        for(int i=0;i<attribs.Length;++i)
+        Type[] output = null;
+        if (!s_dependencyAttributes.TryGetValue(script, out output))
         {
-            var dep = attribs[i] as ScriptDependencyAttribute;
-            if(dep==null) continue;
-            types.AddRange(dep.GetScriptDependencies());
+            List<Type> types = new List<Type>();
+
+            var attribs = currentType.GetCustomAttributes(typeof(ScriptDependencyAttribute), true);
+            for(int i=0;i<attribs.Length;++i)
+            {
+                var dep = attribs[i] as ScriptDependencyAttribute;
+                if(dep==null) continue;               
+                types.AddRange(dep.GetScriptDependencies()
+                    .Where(x=>typeof(ScriptableObject).IsAssignableFrom(x) || typeof(MonoBehaviour).IsAssignableFrom(x))
+                    );
+            }
+            s_dependencyAttributes[script] = output = types.ToArray();
+        }         
+        return output;
+    }
+
+    private static Dictionary<MonoScript, int?> s_fixedOrderAttributes = new Dictionary<MonoScript, int?>();
+    static bool GetFixedOrder(MonoScript script, out int output)
+    {
+        output = 0;
+        if (script == null) return false;
+
+        int? value = null;
+
+        if (!s_fixedOrderAttributes.TryGetValue(script, out value))
+        {
+            var order = UnityEditor.MonoImporter.GetExecutionOrder(script);
+            output = order;
+
+            var attrib = script.GetClass().GetCustomAttributes(typeof(ScriptExecutionOrderAttribute), true).Cast<ScriptExecutionOrderAttribute>().FirstOrDefault();
+            if (attrib == null)
+            {
+                s_fixedOrderAttributes[script] = null;
+            }
+            else
+            {
+                s_fixedOrderAttributes[script] = value = attrib.order;    
+            }            
         }
 
-        return types.ToArray();
+        if (value.HasValue)
+        {
+            output = value.Value;
+            return true;
+        }
+
+        return false;
     }
 }
 #endif
