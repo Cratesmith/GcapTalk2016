@@ -55,14 +55,16 @@ public abstract class ResourceSingleton<T> : ScriptableObject where T:Scriptable
 #region internal
 
 #if UNITY_EDITOR
-[InitializeOnLoad]
-public static class ResourceSingletonBuilder
+public class ResourceSingletonBuilder : UnityEditor.AssetPostprocessor
 {
     static bool s_hasRun = false;
 
-    static ResourceSingletonBuilder()
+    static void OnPostprocessAllAssets (string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths) 
     {
-        BuildResourceSingletonsIfDirty();
+        if(importedAssets.Concat(movedAssets).Any(x=> x.EndsWith(".cs") || x.EndsWith(".js")))
+        {
+            BuildResourceSingletonsIfDirty();
+        }
     }
 
     public static void BuildResourceSingletonsIfDirty()
@@ -73,7 +75,7 @@ public static class ResourceSingletonBuilder
         }
 
         BuildResourceSingletons();
-    }
+    } 
 
     public static void BuildResourceSingletons()
     {
