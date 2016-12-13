@@ -6,7 +6,7 @@ using UnityEngine.Assertions;
 using System.Linq;
 #endif
 
-[ScriptExecutionOrderAttribute(101)]
+[ScriptExecutionOrderAttribute(-101)]
 public class FixedExecutionOrderTestBehaviour : ScriptDependencyTestBehaviour
 {
 }
