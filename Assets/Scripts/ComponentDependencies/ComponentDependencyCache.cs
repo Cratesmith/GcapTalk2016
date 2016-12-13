@@ -45,6 +45,7 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
     /// </summary>
     Dictionary<Type, Dependency[]> m_dependencies = new Dictionary<Type, Dependency[]>();
 
+
     static Dependency[] GetDependencies(Type forType)
     {
         Dependency[] output = null;
@@ -102,31 +103,69 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
     #endif
 
     #if UNITY_EDITOR
-    [UnityEditor.InitializeOnLoadMethod]
-    static void ProcessAll()
+    /*
+    public class Builder : UnityEditor.AssetPostprocessor
     {
+        static void OnPostprocessAllAssets (string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths) 
+        {
+            if(importedAssets
+                .Concat(movedAssets)
+                .Concat(deletedAssets)
+                .Any(x=> x.EndsWith(".cs") || x.EndsWith(".js")))
+            {
+                ComponentDependencyCache.ProcessDependencies();
+            }
+        }
+    }*/
+    /*
+    [UnityEditor.InitializeOnLoadMethod]
+    static void InitializeOnLoad()
+    {
+        if (UnityEditor.BuildPipeline.isBuildingPlayer || UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            ProcessDependencies();
+        }
+        else
+        {
+            UnityEditor.EditorApplication.delayCall += ProcessDependencies;
+        }        
+    }
+    */
+    /*
+    [UnityEditor.Callbacks.PostProcessScene]
+    static void PostProcessScene()
+    {
+        if (!Application.isPlaying && UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene().buildIndex <= 0)
+        {
+            ProcessDependencies();                        
+        }
+    }*/
+
+    [UnityEditor.Callbacks.DidReloadScripts]
+    private static void ProcessDependencies()
+    { 
         ResourceSingletonBuilder.BuildResourceSingletonsIfDirty();
 
-        var types = new string[] {".cs", ".js"};
+        var types = new string[] { ".cs", ".js" };
 
         var allScriptPaths = Directory.GetFiles("Assets", "*.*", SearchOption.AllDirectories)
-            .Where(s => types.Any(x=>s.EndsWith(x, System.StringComparison.CurrentCultureIgnoreCase)))
+            .Where(s => types.Any(x => s.EndsWith(x, System.StringComparison.CurrentCultureIgnoreCase)))
             .ToArray();
 
-        for(int i=0;i<allScriptPaths.Length; ++i)
+        for (int i = 0; i < allScriptPaths.Length; ++i)
         {
             UnityEditor.MonoScript script = UnityEditor.AssetDatabase.LoadAssetAtPath(allScriptPaths[i], typeof(UnityEditor.MonoScript)) as UnityEditor.MonoScript;
-            if(!script || script.GetClass()==null) continue;
-            if(!typeof(Component).IsAssignableFrom(script.GetClass())) continue;
+            if (!script || script.GetClass() == null) continue;
+            if (!typeof(Component).IsAssignableFrom(script.GetClass())) continue;
 
-            var type = script.GetClass();    
-            var attributes = (ComponentDependencyAttribute[])type.GetCustomAttributes(typeof(ComponentDependencyAttribute),true);
-            if(attributes.Length==0) continue;
-             
+            var type = script.GetClass();
+            var attributes = (ComponentDependencyAttribute[])type.GetCustomAttributes(typeof(ComponentDependencyAttribute), true);
+            if (attributes.Length == 0) continue;
+
             var dependencies = attributes
-                .Where(x=> x!=null)
-                .SelectMany(x=>x.GetComponentDependencies())
-                .ToArray(); 
+                .Where(x => x != null)
+                .SelectMany(x => x.GetComponentDependencies())
+                .ToArray();
 
             ProcessAll_SetDependencies(type, dependencies);
         }
@@ -149,20 +188,22 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
                 Assert.IsNotNull(dependency.requiredType);
                 Assert.IsNotNull(dependency.defaultType);
                 seralisedDeps.Add(new SerializedDependency(){
-                    requiredTypeName = dependency.requiredType.Name,
-                    defaultTypeName = dependency.defaultType.Name,
+                    requiredTypeName = dependency.requiredType.FullName,
+                    defaultTypeName = dependency.defaultType.FullName,
                 });
             }
             items.Add(new SerializedItem(){
-                typeName = type.Name,
+                typeName = type.FullName,
                 dependencies = seralisedDeps.ToArray()
             }); 
         }
 
         instance.hideFlags = HideFlags.NotEditable;
         UnityEditor.EditorUtility.SetDirty(instance);
+
         var so = new UnityEditor.SerializedObject(instance);       
-        so.UpdateIfDirtyOrScript();
+        so.Update();
+
         UnityEditor.AssetDatabase.SaveAssets();
     }
     #endif
@@ -180,7 +221,7 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
             var item = m_serializedItems[i];
             if(string.IsNullOrEmpty(item.typeName)) continue;
 
-            var forType = GetType().Assembly.GetType(item.typeName);
+            var forType = GetType(item.typeName);
             if(forType==null)
             {
                 continue; 
@@ -192,31 +233,46 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
                 var dependency = new Dependency();
                 var dep = item.dependencies[j];
 
-                if(!string.IsNullOrEmpty(dep.requiredTypeName))
+                if(!string.IsNullOrEmpty(dep.requiredTypeName)) 
                 {
-                    dependency.requiredType = GetType().Assembly.GetType(dep.requiredTypeName);
+                    dependency.requiredType = GetType(dep.requiredTypeName);
                 }
+                  
                 if(dependency.requiredType==null)
                 {
-                    Debug.LogError("ComponentDependencyCache: Could not find type "+dep.requiredTypeName);
+#if DEBUG_LOG
+                    Debug.Log("ComponentDependencyCache: Skipping missing type "+dep.requiredTypeName);
+#endif
                     continue;
                 }
 
                 if(!string.IsNullOrEmpty(dep.defaultTypeName))
                 {
-                    dependency.defaultType = GetType().Assembly.GetType(dep.defaultTypeName);
+                    dependency.defaultType = GetType(dep.defaultTypeName);
                 }
-                if(dependency.requiredType==null)
+
+                if(dependency.defaultType==null)
                 {
                     Debug.LogError("ComponentDependencyCache: Could not find type "+dep.defaultTypeName);
                     continue;
                 }
 
                 list.Add(dependency);
-            }
+            } 
 
             m_dependencies[forType] = list.ToArray();
         }
+    }    
+#endregion
+    static System.Type GetType(string name)
+    { 
+        System.Type type = null;
+        var assemblies = System.AppDomain.CurrentDomain.GetAssemblies();
+        for (int i = 0; i < assemblies.Length; i++)
+        {
+            type = assemblies[i].GetType(name);
+            if (type != null) break;
+        }
+        return type;
     }
-    #endregion
 }

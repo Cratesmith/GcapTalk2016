@@ -33,9 +33,10 @@ public abstract class ResourceSingleton<T> : ScriptableObject where T:Scriptable
                 s_instance = Resources.Load(typeof(T).Name) as T;
             }
         }
-        else 
+
+        #if UNITY_EDITOR
+        if(!s_instance) 
         {
-            #if UNITY_EDITOR
             ResourceSingletonBuilder.BuildResourceSingletonsIfDirty(); // ensure that singletons were built
 
             var temp = ScriptableObject.CreateInstance<T>();
@@ -45,24 +46,28 @@ public abstract class ResourceSingleton<T> : ScriptableObject where T:Scriptable
             var assetDir    = Path.GetDirectoryName(scriptPath)+"/Resources/";
             var assetPath   = assetDir+Path.GetFileNameWithoutExtension(scriptPath)+".asset";
             s_instance = AssetDatabase.LoadAssetAtPath<T>(assetPath);
-            #endif
+            
         }
+        #endif
     }
 }
 
 #region internal
 
 #if UNITY_EDITOR
-[InitializeOnLoad]
-public static class ResourceSingletonBuilder
+public class ResourceSingletonBuilder// : UnityEditor.AssetPostprocessor
 {
     static bool s_hasRun = false;
-
-    static ResourceSingletonBuilder()
+    /*
+    static void OnPostprocessAllAssets (string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths) 
     {
-        BuildResourceSingletonsIfDirty();
+        if(importedAssets.Concat(movedAssets).Any(x=> x.EndsWith(".cs") || x.EndsWith(".js")))
+        {
+            BuildResourceSingletonsIfDirty();
+        }
     }
-
+    */
+    [UnityEditor.Callbacks.DidReloadScripts]
     public static void BuildResourceSingletonsIfDirty()
     {
         if(s_hasRun)
@@ -71,9 +76,9 @@ public static class ResourceSingletonBuilder
         }
 
         BuildResourceSingletons();
-    }
-
-    static void BuildResourceSingletons()
+    } 
+        
+    public static void BuildResourceSingletons()
     {
         var result = System.Reflection.Assembly.GetExecutingAssembly()
             .GetTypes()

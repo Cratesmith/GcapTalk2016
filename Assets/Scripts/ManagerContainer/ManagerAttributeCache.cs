@@ -119,31 +119,52 @@ ISerializationCallbackReceiver
     [UnityEditor.InitializeOnLoadMethod]
     static void ProcessScripts()
     {
-        var types = new string[] {".cs", ".js"};
+        if (UnityEditor.BuildPipeline.isBuildingPlayer || UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            ProcessManagerAttributes();
+        }
+        else
+        {
+            UnityEditor.EditorApplication.delayCall += ProcessManagerAttributes;
+        }
+    }
+
+    [UnityEditor.Callbacks.PostProcessScene]
+    static void PostProcessScene()
+    {
+        if(!Application.isPlaying && UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene().buildIndex <= 0)
+        {
+            ProcessManagerAttributes();
+        }
+    }
+
+    private static void ProcessManagerAttributes()
+    {
+        var types = new string[] { ".cs", ".js" };
 
         var allScriptPaths = Directory.GetFiles("Assets", "*.*", SearchOption.AllDirectories)
-            .Where(s => types.Any(x=>s.EndsWith(x, System.StringComparison.CurrentCultureIgnoreCase)))
+            .Where(s => types.Any(x => s.EndsWith(x, System.StringComparison.CurrentCultureIgnoreCase)))
             .ToArray();
-                   
+
         instance.m_attributes.Clear();
 
-        for(int i=0;i<allScriptPaths.Length; ++i)
+        for (int i = 0; i < allScriptPaths.Length; ++i)
         {
             UnityEditor.MonoScript script = UnityEditor.AssetDatabase.LoadAssetAtPath(allScriptPaths[i], typeof(UnityEditor.MonoScript)) as UnityEditor.MonoScript;
-            if(!script || script.GetClass()==null) continue;
-            if(!typeof(Manager).IsAssignableFrom(script.GetClass())) continue;
+            if (!script || script.GetClass() == null) continue;
+            if (!typeof(Manager).IsAssignableFrom(script.GetClass())) continue;
 
-            var type = script.GetClass();  
+            var type = script.GetClass();
             instance.m_attributes[type] = new ManagerAttributes(type);
         }
-           
+
         instance.hideFlags = HideFlags.NotEditable;
         UnityEditor.EditorUtility.SetDirty(instance);
-        var so = new UnityEditor.SerializedObject(instance);       
+        var so = new UnityEditor.SerializedObject(instance);
         so.UpdateIfDirtyOrScript();
         UnityEditor.AssetDatabase.SaveAssets();
     }
-    #endif
+#endif
 
     public static System.Type[] GetManagerDependencies(System.Type managerType)
     {

@@ -13,9 +13,11 @@ public class UIScoreText : BaseMonoBehaviour
         base.Awake();
         m_scoreManager = GetManager<ScoreManager>();
         m_text = GetComponent<Text>();
+        m_scoreManager.onScoreChanged.AddListener(UpdateScore);
+        UpdateScore();
     }
 
-    void Update()
+    void UpdateScore()
     {
         m_text.text = m_scoreManager.currentScore.ToString();
     }
