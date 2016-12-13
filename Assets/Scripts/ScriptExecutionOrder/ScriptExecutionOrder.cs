@@ -1,4 +1,7 @@
-﻿using UnityEngine;
+﻿#define LOG_DEBUG
+//#define LOG_DEBUG_VERBOSE
+
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using Type = System.Type;
@@ -8,8 +11,6 @@ using UnityEditor;
 using System.IO;
 using System.Linq;
 #endif
-
-//#define LOG_DEBUG
 
 /// <summary>
 /// Sets the script exection order to a specific value.
@@ -22,7 +23,7 @@ public class ScriptExecutionOrderAttribute : System.Attribute
 	{
 		this.order = order;
 	}
-}
+} 
 
 /// <summary>
 /// Ensures that this script will execute after all scripts of the specified type.
@@ -61,7 +62,7 @@ public static class ScriptExecutionOrder
         }
     }
 
-    //[UnityEditor.InitializeOnLoadMethod]
+    [UnityEditor.Callbacks.DidReloadScripts]
     static void ProcessAll()
     {
         var types = new string[] {".cs", ".js"};
@@ -128,7 +129,7 @@ public static class ScriptExecutionOrder
 
             // 
             // apply priorities in order
-            for(int j=0; j<currentIsland.Length; ++j)
+            for(int j=0; j<currentIsland.Length; ++j)  
             {               
                 int scriptFixedOrder = 0;
                 var script = currentIsland[j].script;
@@ -153,7 +154,7 @@ public static class ScriptExecutionOrder
 
                 // Leaves have no dependencies so the next behaviour can share the same execution order as a leaf
                 // 
-                if(!isLeaf)
+                if(!isLeaf || (isLeaf && !hasFixedOrderItem))
                 {
                     ++newDepOrder;
                 }
@@ -232,7 +233,7 @@ public static class ScriptExecutionOrder
             SortDependencies_Visit(script, visited, sortedItems, lookup, null, connections);
         }
         
-        // do any leaves first
+        // non-leaves 
         for(int i=0;i<scriptsToSort.Length;++i) 
         {
             var script = scriptsToSort[i];
@@ -240,7 +241,7 @@ public static class ScriptExecutionOrder
 
             HashSet<MonoScript> connectionSet = null;
             if (connections.TryGetValue(script, out connectionSet) 
-                && GetScriptDependencies(script).Length != connections[script].Count)
+                && GetScriptDependencies(script).Length == connections[script].Count)
             {
                 continue;               
             }
@@ -248,7 +249,7 @@ public static class ScriptExecutionOrder
             SortDependencies_Visit(script, visited, sortedItems, lookup, null, connections);
         }
 
-        // then then any that remain
+        // leaves (any that remain)
         for(int i=0;i<scriptsToSort.Length;++i) 
         {
             var script = scriptsToSort[i];
@@ -339,7 +340,7 @@ public static class ScriptExecutionOrder
             // 1. all dependencies are sorted
             // 2. cyclic dependencies can be caught if an item is visited AND it's been added to this list
             var depsRemaining = GetScriptDependencies(current);
-
+             
             var visitedFrom = current;
 
             // do deps with fixed orders first
@@ -350,15 +351,7 @@ public static class ScriptExecutionOrder
                     false);
             }
 
-            // then leaves
-            for(int i=0;i<depsRemaining.Length; ++i)
-            {
-                SortDependencies_Visit_VisitDependency(visited, sortedItems, lookup, connections, depsRemaining[i], visitedFrom,
-                    false,
-                    true);
-            }
-
-            // then any remaining ones
+            // then non-leaves
             for(int i=0;i<depsRemaining.Length; ++i)
             {
                 SortDependencies_Visit_VisitDependency(visited, sortedItems, lookup, connections, depsRemaining[i], visitedFrom,
@@ -366,8 +359,19 @@ public static class ScriptExecutionOrder
                     false);
             }
 
-            sortedItems.Add( current );
-        }
+            // then any leaves
+            for(int i=0;i<depsRemaining.Length; ++i)
+            {
+                SortDependencies_Visit_VisitDependency(visited, sortedItems, lookup, connections, depsRemaining[i], visitedFrom,
+                    false,
+                    true);
+            }
+
+#if LOG_DEBUG_VERBOSE
+            Debug.Log("Sorted "+current.name);
+#endif
+            sortedItems.Add( current ); 
+        } 
         else
         {
             Debug.Assert(sortedItems.Contains(current), "Cyclic dependency found for ScriptDependency "+current.name+" via "+(visitedBy!=null?visitedBy.name:"Unknown")+"!");
@@ -406,7 +410,7 @@ public static class ScriptExecutionOrder
             return;               
         }
 
-        if (lookup.TryGetValue(depType, out depScript) && !HasFixedOrder(depScript))
+        if (lookup.TryGetValue(depType, out depScript)/* && !HasFixedOrder(depScript)*/)
         {
             SortDependencies_Visit(depScript, visited, sortedItems, lookup, visitedFrom, connections);
         }

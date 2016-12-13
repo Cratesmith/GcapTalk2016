@@ -103,6 +103,7 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
     #endif
 
     #if UNITY_EDITOR
+    /*
     public class Builder : UnityEditor.AssetPostprocessor
     {
         static void OnPostprocessAllAssets (string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths) 
@@ -115,7 +116,7 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
                 ComponentDependencyCache.ProcessDependencies();
             }
         }
-    }
+    }*/
     /*
     [UnityEditor.InitializeOnLoadMethod]
     static void InitializeOnLoad()
@@ -130,6 +131,7 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
         }        
     }
     */
+    /*
     [UnityEditor.Callbacks.PostProcessScene]
     static void PostProcessScene()
     {
@@ -137,10 +139,11 @@ public class ComponentDependencyCache : ResourceSingleton<ComponentDependencyCac
         {
             ProcessDependencies();                        
         }
-    }
+    }*/
 
+    [UnityEditor.Callbacks.DidReloadScripts]
     private static void ProcessDependencies()
-    {
+    { 
         ResourceSingletonBuilder.BuildResourceSingletonsIfDirty();
 
         var types = new string[] { ".cs", ".js" };

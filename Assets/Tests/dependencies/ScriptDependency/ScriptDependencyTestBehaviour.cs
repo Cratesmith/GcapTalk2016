@@ -5,30 +5,9 @@ using UnityEngine.Assertions;
 #if UNITY_EDITOR
 using System.Linq;
 #endif
-/*
-#if UNITY_EDITOR
-public class ScriptDependencyTestBehaviourProcessor : UnityEditor.AssetPostprocessor
-{
-    static void OnPostprocessAllAssets (string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths) 
-    {
-        var importedScripts = importedAssets.Where(x=> x.EndsWith(".cs") || x.EndsWith(".js")).ToArray();
-        foreach(var i in importedScripts)
-        {
-            var script = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEditor.MonoScript>(i);
-            if(script==null 
-                || !typeof(ScriptDependencyTestBehaviour).IsAssignableFrom(script.GetClass()))
-            {
-                continue;
-            }
-                
-            var so = new UnityEditor.SerializedObject(script);
-            var orderProp = so.FindProperty("order");
-            orderProp.intValue = UnityEditor.MonoImporter.GetExecutionOrder(script);
-        }
-    }
-}
-#endif
-*/
+
+
+
 public class ScriptDependencyTestBehaviour : BaseMonoBehaviour 
 {
     public int awakes       {get;set;}

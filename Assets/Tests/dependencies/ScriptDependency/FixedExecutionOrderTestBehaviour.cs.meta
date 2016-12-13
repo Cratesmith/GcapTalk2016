@@ -1,12 +1,11 @@
 fileFormatVersion: 2
-guid: a1c2145a58e0a4a699cc537d64347041
+guid: 02cf9f96891054cc9a4965a2a7e89856
 timeCreated: 1481638918
 licenseType: Pro
 MonoImporter:
   serializedVersion: 2
-  defaultReferences:
-  - blopb: {fileID: 1000013434973740, guid: 0a3756be8fd8f4cedb0f2d86671a9e8e, type: 2}
-  executionOrder: 104
+  defaultReferences: []
+  executionOrder: 101
   icon: {instanceID: 0}
   userData: 
   assetBundleName: 
