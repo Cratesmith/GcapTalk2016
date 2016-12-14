@@ -2,12 +2,15 @@ using UnityEngine;
 using System.Collections;
 
 [ExecuteInEditMode]
+#if UNITY_EDITOR
+[ScriptDependency(typeof(PreviewInstance))]
+#endif
 public class PreviewModel : MonoBehaviour
 {
+    #if UNITY_EDITOR
     [SerializeField] [HideInInspector] PreviewInstance m_previewInstance;
     public PreviewInstance previewInstance { get { return m_previewInstance;} }
 
-    #if UNITY_EDITOR
     void Awake()
     {
         if(!Application.isPlaying)

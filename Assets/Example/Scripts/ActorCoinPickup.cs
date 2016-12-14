@@ -7,7 +7,7 @@ public partial class ScoreSettings : ResourceSingleton<ScoreSettings>
     public static ActorCoinPickup.Settings coinPickup { get { return instance.m_coinPickup; } }
 }
 
-[RequireComponent(typeof(PreviewModel))]
+[ComponentDependencyAttribute(typeof(PreviewModel))]
 public class ActorCoinPickup : BaseMonoBehaviour, IPreviewModelSource
 {
     [System.Serializable]
@@ -17,16 +17,15 @@ public class ActorCoinPickup : BaseMonoBehaviour, IPreviewModelSource
         public GameObject   modelPrefab;
     }
 
-    GameObject m_modelInstance;
-
-    void Awake()
+    protected override void Awake()
     {
+        base.Awake();
         if(ScoreSettings.coinPickup.modelPrefab) 
         {
-            m_modelInstance = Instantiate(ScoreSettings.coinPickup.modelPrefab, 
+            Instantiate(ScoreSettings.coinPickup.modelPrefab, 
                 transform.position, 
                 transform.rotation, 
-                transform) as GameObject;
+                transform);
         }
     }
 

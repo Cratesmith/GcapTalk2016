@@ -2,8 +2,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
+#if UNITY_5_5_OR_NEWER
+using UnityEngine.EventSystems;
+using UnityEngine.Profiling;
+#endif
 
-[ScriptExecutionOrder(-16000)]
+/// <summary>
+/// Manager container.
+/// </summary>
 public partial class ManagerContainer : MonoBehaviour
 {
     [SerializeField] Manager[]  m_managerPrefabs = new Manager[0];
@@ -11,6 +17,8 @@ public partial class ManagerContainer : MonoBehaviour
 
     public bool isGlobalContainer { get { return s_globalContainer == this; } }
 
+    List<Manager>                       m_managersToStart   = new List<Manager>();
+    List<Manager>                       m_managersToExecute = new List<Manager>();
     List<Manager>                       m_managerInstances  = new List<Manager>();
     Dictionary<System.Type, Manager>    m_managerLookup     = new Dictionary<System.Type, Manager>();
 
@@ -38,14 +46,42 @@ public partial class ManagerContainer : MonoBehaviour
     {
         var sortedManagers = GetSortedManagers();
         for(int i=0;i<sortedManagers.Count; ++i) {
-            if(m_managerPrefabs[i]==null) continue;    
+            if(sortedManagers[i]==null) continue;    
+            if(!isGlobalContainer && ManagerAttributeCache.IsManagerAlwaysGlobal(sortedManagers[i].GetType()))
+            {
+                    Debug.LogError("Cannot add [ManagerAlwaysGlobal] manager prefab \""
+                    +sortedManagers[i].name
+                    +"\"("+sortedManagers[i].GetType().Name
+                    +") to non-global container!"
+                    +name
+                    +"."); 
+                continue;
+            }
             var manager = Instantiate(sortedManagers[i]);
             AddNewManager(manager);
         }   
 
-        for(int i=0;i<m_managerInstances.Count; ++i) {
-            m_managerInstances[i].OnStart();
-        }        
+        StartNewManagers();    
+    }
+
+    void StartNewManagers()
+    {
+        Profiler.BeginSample("ManagerContainer.StartNewManagers");
+        for (int i = 0; i < m_managersToStart.Count; ++i)
+        {
+            var manager = m_managersToStart[i];
+            if (manager.enabled)
+            {
+                manager.OnStart();
+                m_managersToExecute.Add(manager);
+            }
+        }
+
+        if(m_managersToStart.Count > 0)
+        {
+            m_managersToStart.RemoveAll(x => x.enabled == true);
+        }
+        Profiler.EndSample();
     }
 
     Manager AutoconstructManager(System.Type managerType)
@@ -76,6 +112,7 @@ public partial class ManagerContainer : MonoBehaviour
 
         m_managerLookup.Add(manager.GetType(), manager);
         m_managerInstances.Add(manager);
+        m_managersToStart.Add(manager);
 
         manager.container = this;
         manager.enabled = true;
@@ -87,40 +124,62 @@ public partial class ManagerContainer : MonoBehaviour
             Destroy(m_managerInstances[i]);
         }
         m_managerInstances.Clear();
-    }
+    }      
 
-    void ExecuteManagers(System.Action<Manager> action)
+    void ExecuteOnManagers(System.Action<Manager> action)
     {
-        for(int i=0;i<m_managerInstances.Count; ++i) {
-            action.Invoke(m_managerInstances[i]);
+        Profiler.BeginSample("ManagerContainer.ExecuteOnManagers");
+        for(int i=0;i<m_managersToExecute.Count; ++i) {
+            var manager = m_managersToExecute[i];
+            if(!manager.enabled) continue;                
+            action.Invoke(manager);
         }
+        Profiler.EndSample();
     }
 
     public static void InitAllContainers()
     {
-        if(s_globalContainer) 
-        {
-            s_globalContainer.InitContainer();
-        }
-
-        var e = s_managerContainers.GetEnumerator();
-        while(e.MoveNext()) 
-        {
-            e.Current.Value.InitContainer();
-        }
+        ExecuteOnAllContainers(container=>container.InitContainer());       
     }
         
-    public static void Execute(System.Action<Manager> action)
+    public static void StartOfFrame()
     {
+        Profiler.BeginSample("ManagerContainer.StartOfFrame");
+        ExecuteOnAllContainers(container=>container.StartNewManagers());
+        Profiler.EndSample();
+    }
+
+    static void ExecuteOnAllContainers(System.Action<ManagerContainer> action)
+    {
+        Profiler.BeginSample("ManagerContainer.ExecuteOnAllContainers");
         if(s_globalContainer) 
         {
-            s_globalContainer.ExecuteManagers(action);
+            action(s_globalContainer);
         }
 
         var e = s_managerContainers.GetEnumerator();
         while(e.MoveNext()) 
         {
-            e.Current.Value.ExecuteManagers(action);
+            if(e.Current.Value.isGlobalContainer) continue;
+            action(e.Current.Value);
         }
+        Profiler.EndSample();
+    }    
+
+    public static void ExecuteOnAllManagers(System.Action<Manager> action)
+    {
+        Profiler.BeginSample("ManagerContainer.ExecuteOnAllManagers");
+        if(s_globalContainer) 
+        {
+            s_globalContainer.ExecuteOnManagers(action);
+        }
+
+        var e = s_managerContainers.GetEnumerator();
+        while(e.MoveNext()) 
+        {
+            if(e.Current.Value.isGlobalContainer) continue;
+            e.Current.Value.ExecuteOnManagers(action);
+        }
+        Profiler.EndSample();
     }
 }

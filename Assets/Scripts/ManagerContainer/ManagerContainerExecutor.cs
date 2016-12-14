@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 
+[ScriptDependencyAttribute(typeof(ManagerContainer))]
 [ScriptExecutionOrder(-16000)]
 public class ManagerContainerExecutor : MonoBehaviour
 {
@@ -25,8 +26,28 @@ public class ManagerContainerExecutor : MonoBehaviour
         }
     }
 
-    void Awake()          { ManagerContainer.InitAllContainers();  m_initialized = true;}
-    void Update()         { ManagerContainer.Execute(x=>x.OnUpdate()); }
-    void FixedUpdate()    { ManagerContainer.Execute(x=>x.OnFixedUpdate()); }
-    void LateUpdate()     { ManagerContainer.Execute(x=>x.OnLateUpdate()); }
+    void Awake()          
+    { 
+        ManagerContainer.InitAllContainers();
+        m_initialized = true;
+    }
+
+    static readonly System.Action<Manager> callOnUpdate = (x)=>x.OnUpdate();
+    void Update()         
+    { 
+        ManagerContainer.StartOfFrame(); 
+        ManagerContainer.ExecuteOnAllManagers(callOnUpdate); 
+    }
+    
+    static readonly System.Action<Manager> callFixedUpdate = (x)=>x.OnFixedUpdate();
+    void FixedUpdate()    
+    { 
+        ManagerContainer.ExecuteOnAllManagers(callFixedUpdate); 
+    }
+
+    static readonly System.Action<Manager> callLateUpdate = (x)=>x.OnLateUpdate();
+    void LateUpdate()     
+    {
+        ManagerContainer.ExecuteOnAllManagers(callLateUpdate); 
+    }
 }
